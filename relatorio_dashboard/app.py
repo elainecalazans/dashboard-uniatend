@@ -6,6 +6,8 @@ import numpy as np
 import datetime
 import os
 import base64
+import json
+import io
 
 # ==============================
 # 1. CONFIGURAÇÃO DA PÁGINA
@@ -305,6 +307,91 @@ html, body, [class*="css"] {
 ::-webkit-scrollbar-track { background: #eaf2ec; }
 ::-webkit-scrollbar-thumb { background: #9dcfae; border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: #68bd46; }
+
+/* ─────────────────────────────────────────
+   CARTÕES SLA (aba de regras)
+───────────────────────────────────────── */
+.sla-card {
+    background: #ffffff;
+    border: 1px solid #dce8e1;
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
+    box-shadow: 0 2px 10px rgba(2, 104, 61, 0.06);
+    margin-bottom: 0.8rem;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.sla-card:hover {
+    box-shadow: 0 6px 22px rgba(2, 104, 61, 0.12);
+    transform: translateY(-2px);
+}
+.sla-card-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #013d24;
+    margin-bottom: 0.45rem;
+}
+.sla-card-modulo {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 10px;
+    border-radius: 20px;
+    margin-bottom: 0.6rem;
+}
+.sla-card-modulo.unifiscal { background: #3362a9; color: #ffffff; }
+.sla-card-modulo.unidp     { background: #7b4e99; color: #ffffff; }
+.sla-card-modulo.ambos     { background: #fef3c7; color: #92400e; }
+.sla-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 8px;
+    margin-right: 6px;
+}
+.sla-badge.piso { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.sla-badge.teto { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.sla-badge.na   { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; font-style: italic; }
+.sla-nota {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #d97706;
+    font-style: italic;
+}
+.download-hero {
+    background: linear-gradient(135deg, #02683d 0%, #1a8c55 100%);
+    border-radius: 18px;
+    padding: 2rem 2.2rem;
+    color: #ffffff;
+    margin-bottom: 1.6rem;
+}
+.download-hero h3 {
+    color: #ffffff !important;
+    font-size: 1.1rem !important;
+    margin-bottom: 0.3rem !important;
+    border: none !important;
+    padding: 0 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+.download-hero p {
+    color: rgba(255,255,255,0.78) !important;
+    font-size: 0.85rem !important;
+    margin: 0 !important;
+}
+            
+button[kind="secondary"] {
+    background-color: #68bd46 !important;
+    color: white !important;
+}
+
+button[kind="secondary"]:hover {
+    background-color: #02683d !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -356,9 +443,128 @@ BASELINE_HISTORICO = 0.48
 METAS_SLA_MENSAL = {4: 0.35, 5: 0.25, 6: 0.15}
 
 # ==============================
-# CARREGAMENTO E LIMPEZA
+# REGRAS SLA (JSON embutido)
 # ==============================
-@st.cache_data
+REGRAS_SLA = [
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["inserir xml"],
+    "subcategoria": ["generico"],
+    "nome_exibicao": "Inserir XML / Genérico",
+    "piso_horas": 2.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["cadastro de empresa"],
+    "subcategoria": [],
+    "nome_exibicao": "Cadastro de Empresa",
+    "piso_horas": 3.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["parametrizacoes"],
+    "subcategoria": ["duvidas"],
+    "nome_exibicao": "Parametrizações > Dúvidas",
+    "piso_horas": 6.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["parametrizacoes"],
+    "subcategoria": ["atualizacao"],
+    "nome_exibicao": "Parametrizações > Atualização",
+    "piso_horas": 24.2,
+    "teto_horas": 120.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["status de manifesto"],
+    "subcategoria": [],
+    "nome_exibicao": "Status de Manifesto",
+    "piso_horas": 153.6,
+    "teto_horas": 168.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["validacoes trib. entrada", "validacoes trib entrada", "validacoes trib. saida", "validacoes trib saida"],
+    "subcategoria": [],
+    "nome_exibicao": "Validações Trib. Entrada/Saída",
+    "piso_horas": 3.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["coleta"],
+    "subcategoria": [],
+    "nome_exibicao": "Coleta",
+    "piso_horas": 148.8,
+    "teto_horas": 168.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["ferias"],
+    "subcategoria": ["adicionar opcoes de ferias"],
+    "nome_exibicao": "Férias (Inclui adição de opções)",
+    "piso_horas": 2.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["parametrizacoes"],
+    "subcategoria": ["rubricas de holerite"],
+    "nome_exibicao": "Parametrizações > Rubricas de Holerite",
+    "piso_horas": 2.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["permissoes"],
+    "subcategoria": [],
+    "nome_exibicao": "Permissões",
+    "piso_horas": 1.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["upload"],
+    "subcategoria": ["atualizacao de colaboradores"],
+    "nome_exibicao": "Upload > Atualização de Colaboradores",
+    "piso_horas": 2.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["falhas em integracoes", "falhas em salvamento de formularios", "falhas em lancamento de ponto"],
+    "subcategoria": [],
+    "nome_exibicao": "Falhas: Integrações / Salvamento / Ponto",
+    "piso_horas": 36.0,
+    "teto_horas": 72.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["falhas no calculo de banco de horas"],
+    "subcategoria": [],
+    "nome_exibicao": "Falhas no Cálculo de Banco de Horas",
+    "piso_horas": 48.0,
+    "teto_horas": 72.0
+  },
+  {
+    "modulo": "Ambos",
+    "categoria": ["melhorias"],
+    "subcategoria": [],
+    "nome_exibicao": "Melhorias",
+    "piso_horas": None,
+    "teto_horas": None,
+    "nota_especial": "Prazo Não Aplicável"
+  }
+]
+
+# ==============================
+# CARREGAMENTO E LIMPEZA COM TTL NO CACHE
+# ==============================
+@st.cache_data(ttl=3600)
 def load_data():
     try:
         df = pd.read_excel("relatorio_classificado.xlsx")
@@ -396,6 +602,7 @@ with st.sidebar:
             f"""
             <div style="display:flex; justify-content:center; align-items:center; padding: 1.6rem 0 1.4rem;">
                 <img src="data:image/png;base64,{logo_b64}" style="max-width:152px; filter: brightness(0) invert(1);" alt="Logo"/>
+            
             </div>
             """, unsafe_allow_html=True
         )
@@ -409,13 +616,21 @@ with st.sidebar:
 
     min_date = df["Data Abertura"].min().date()
     max_date = df["Data Abertura"].max().date()
-    data_inicio, data_fim = st.date_input(
+    
+    # Tratamento contra o estado incompleto do st.date_input
+    datas_selecionadas = st.date_input(
         "Filtrar Período para Análise",
         value=[min_date, max_date],
         min_value=min_date,
         max_value=max_date,
         format="DD/MM/YYYY"
     )
+    
+    if len(datas_selecionadas) == 2:
+        data_inicio, data_fim = datas_selecionadas
+    else:
+        st.info("👆 Selecione a data final no calendário para atualizar os dados.")
+        st.stop()
 
     st.markdown("<div style='margin:1.2rem 0 0.3rem'></div>", unsafe_allow_html=True)
     st.markdown('<div style="height:1px; background:rgba(104,189,70,0.28); border-radius:1px; margin:0.5rem 0 1.3rem;"></div>', unsafe_allow_html=True)
@@ -459,13 +674,6 @@ mask_prev = (df["Data Abertura"].dt.date >= data_inicio_prev.date()) & (df["Data
 df_atual = df[mask_atual].copy()
 df_prev  = df[mask_prev].copy()
 
-# ==============================
-# DATA DE ATUALIZAÇÃO AUTOMÁTICA
-# ==============================
-
-ultima_atualizacao = df["Data Abertura"].max()
-proxima_atualizacao = ultima_atualizacao + pd.Timedelta(days=7)
-
 if df_atual.empty:
     st.warning("Nenhum dado encontrado no período selecionado.")
     st.stop()
@@ -476,12 +684,17 @@ if df_atual.empty:
 st.markdown('<span class="title-accent"></span><h1 style="display:inline">Inteligência de Atendimento: SLA & Qualidade</h1>', unsafe_allow_html=True)
 st.markdown("Visão focada na evolução e cumprimento de metas da operação.")
 
-# 📅 Data de atualização
-if pd.notna(ultima_atualizacao):
+# 📅 Data de atualização técnica
+caminho_arquivo = "relatorio_classificado.xlsx"
+if os.path.exists(caminho_arquivo):
+    timestamp_modificacao = os.path.getmtime(caminho_arquivo)
+    ultima_atualizacao = datetime.datetime.fromtimestamp(timestamp_modificacao)
+    proxima_atualizacao = ultima_atualizacao + datetime.timedelta(days=7)
+
     st.markdown(
         f"""
         <div style="margin-top:6px; font-size:0.8rem; color:#6b7280;">
-            Atualizado em: <b>{ultima_atualizacao.strftime('%d/%m/%Y')}</b> |
+            Atualização dos Dados: <b>{ultima_atualizacao.strftime('%d/%m/%Y às %H:%M')}</b> |
             Próxima atualização prevista: <b>{proxima_atualizacao.strftime('%d/%m/%Y')}</b>
         </div>
         """,
@@ -592,10 +805,11 @@ def zebra_color(row):
     bg = '#f8fafc' if row.name % 2 == 0 else '#ffffff'
     return [f'background-color: {bg}; color: #1f2937'] * len(row)
 
-tab_comp, tab_cons, tab_det = st.tabs([
+tab_comp, tab_cons, tab_det, tab_dados = st.tabs([
     "📊  Visão Comparativa Mês a Mês",
     "📈  Consolidado Operacional",
-    "📋  Auditoria (Ticket Individual)"
+    "📋  Auditoria (Ticket Individual)",
+    "⚙️  Dados & Regras SLA"
 ])
 
 # ─────────────────────────────
@@ -808,3 +1022,188 @@ with tab_det:
     )
 
     st.dataframe(styled_df, use_container_width=True, hide_index=True, height=500)
+
+# ─────────────────────────────
+# TAB 4 — DADOS & REGRAS SLA
+# ─────────────────────────────
+with tab_dados:
+
+    # ── Seção 1: Download do Excel ──────────────────────────────────────────
+    st.markdown("##### Fonte de Dados Utilizada")
+
+    excel_path = "relatorio_classificado.xlsx"
+
+    col_dl, col_info = st.columns([1, 2], gap="large")
+
+    with col_dl:
+        with st.container(border=True):
+            st.markdown(
+                """
+                <div style="text-align:center; padding: 0.6rem 0 0.4rem;">
+                    <div style="font-size:2.8rem; line-height:1;">📥</div>
+                    <div style="font-weight:700; color:#013d24; font-size:1rem; margin-top:0.5rem;">
+                        relatorio_classificado.xlsx
+                    </div>
+                    <div style="font-size:0.78rem; color:#6b7280; margin-top:0.25rem;">
+                        Base completa sem filtros aplicados
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            st.markdown("<div style='margin-top:0.8rem'></div>", unsafe_allow_html=True)
+
+            if os.path.exists(excel_path):
+                with open(excel_path, "rb") as f:
+                    excel_bytes = f.read()
+                st.download_button(
+                    label="⬇️ Baixar  Excel",
+                    data=excel_bytes,
+                    file_name="relatorio_classificado.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            else:
+                st.warning("Arquivo não localizado no servidor.")
+
+    with col_info:
+        with st.container(border=True):
+            total_registros = len(df)
+            data_min_str = df["Data Abertura"].min().strftime("%d/%m/%Y")
+            data_max_str = df["Data Abertura"].max().strftime("%d/%m/%Y")
+            modulos_disp  = ", ".join(sorted(df["Módulo"].dropna().unique().tolist()))
+            colunas_total = len(df.columns)
+
+            st.markdown(
+                f"""
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.9rem 1.4rem; padding:0.2rem 0;">
+                    <div>
+                        <div style="font-size:0.68rem; font-weight:700; color:#7a9e88; text-transform:uppercase; letter-spacing:0.07em;">Total de Registros</div>
+                        <div style="font-size:1.4rem; font-weight:700; color:#02683d;">{total_registros:,}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.68rem; font-weight:700; color:#7a9e88; text-transform:uppercase; letter-spacing:0.07em;">Colunas</div>
+                        <div style="font-size:1.4rem; font-weight:700; color:#02683d;">{colunas_total}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.68rem; font-weight:700; color:#7a9e88; text-transform:uppercase; letter-spacing:0.07em;">Período Coberto</div>
+                        <div style="font-size:0.9rem; font-weight:600; color:#1f2937;">{data_min_str} → {data_max_str}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.68rem; font-weight:700; color:#7a9e88; text-transform:uppercase; letter-spacing:0.07em;">Módulos Presentes</div>
+                        <div style="font-size:0.9rem; font-weight:600; color:#1f2937;">{modulos_disp}</div>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Seção 2: Regras SLA ─────────────────────────────────────────────────
+    st.markdown("##### Regras de SLA Atualmente Aplicadas")
+
+    st.markdown(
+        """
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:0.85rem 1.1rem; margin-bottom:1.4rem; font-size:0.82rem; color:#166534; line-height:1.6;">
+            <b>Como funciona:</b> cada ticket é classificado por <b>Módulo</b> e <b>Categoria</b>.
+            O sistema localiza a regra correspondente e compara o <b>Tempo Gasto</b> com os limites de
+            <span style="color:#1d4ed8; font-weight:600;">Piso (mín.)</span> e
+            <span style="color:#b91c1c; font-weight:600;">Teto (máx.)</span> para determinar o <b>Status SLA</b>.
+            Regras marcadas como <i>Prazo Não Aplicável</i> são excluídas do cálculo de estouro.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Filtro rápido por módulo dentro da aba
+    modulos_regras = sorted(set(r["modulo"] for r in REGRAS_SLA))
+    filtro_modulo_regra = st.radio(
+        "Filtrar regras por módulo:",
+        options=["Todos"] + modulos_regras,
+        horizontal=True
+    )
+
+    regras_filtradas = REGRAS_SLA if filtro_modulo_regra == "Todos" else [
+        r for r in REGRAS_SLA if r["modulo"] == filtro_modulo_regra
+    ]
+
+    # Renderiza os cards
+    cols_cards = st.columns(2)
+    for idx, regra in enumerate(regras_filtradas):
+        col = cols_cards[idx % 2]
+        with col:
+            modulo_lower = regra["modulo"].lower().replace(" ", "")
+            css_class    = "ambos" if modulo_lower == "ambos" else ("unidp" if "unidp" in modulo_lower else "unifiscal")
+
+            nota_especial = regra.get("nota_especial", None)
+            piso = regra.get("piso_horas")
+            teto = regra.get("teto_horas")
+
+            if nota_especial:
+                badge_piso = f'<span class="sla-badge na">⛔ {nota_especial}</span>'
+            else:
+                badge_piso = f'<span class="sla-badge piso">⬇️ Piso: {piso:.1f}h</span>' if piso is not None else '<span class="sla-badge na">Piso: —</span>'
+                badge_teto = f'<span class="sla-badge teto">⬆️ Teto: {teto:.1f}h</span>' if teto is not None else '<span class="sla-badge na">Teto: —</span>'
+
+            cats = " · ".join(regra["categoria"]) if regra["categoria"] else "—"
+            subs = " · ".join(regra["subcategoria"]) if regra["subcategoria"] else "<span style='color:#9ca3af;font-style:italic;'>qualquer subcategoria</span>"
+
+            nota_html = f'<div class="sla-nota">⚠️ {nota_especial}</div>' if nota_especial else ""
+            badges_html = badge_piso if nota_especial else f"{badge_piso} {badge_teto}"
+
+            st.markdown(
+                f"""
+                <div class="sla-card">
+                    <div class="sla-card-modulo {css_class}">{regra['modulo']}</div>
+                    <div class="sla-card-title">{regra['nome_exibicao']}</div>
+                    <div style="font-size:0.75rem; color:#6b7280; margin-bottom:0.55rem;">
+                        <b style="color:#374151;">Categoria:</b> {cats}<br>
+                        <b style="color:#374151;">Subcategoria:</b> {subs}
+                    </div>
+                    <div>{badges_html}</div>
+                    {nota_html}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Seção 3: Metas SLA Mensais ──────────────────────────────────────────
+    st.markdown("##### Tolerâncias Máximas de Estouro por Mês")
+
+    meses_nomes = {
+        1:"Janeiro", 2:"Fevereiro", 3:"Março", 4:"Abril",
+        5:"Maio", 6:"Junho", 7:"Julho", 8:"Agosto",
+        9:"Setembro", 10:"Outubro", 11:"Novembro", 12:"Dezembro"
+    }
+
+    cols_metas = st.columns(len(METAS_SLA_MENSAL) + 1)
+
+    cols_metas[0].markdown(
+        f"""
+        <div style="background:#fefce8; border:1px solid #fde68a; border-radius:12px; padding:0.9rem 1rem; text-align:center;">
+            <div style="font-size:0.68rem; font-weight:700; color:#92400e; text-transform:uppercase; letter-spacing:0.07em;">Baseline (antes de Abril)</div>
+            <div style="font-size:1.6rem; font-weight:800; color:#b45309; margin-top:0.3rem;">{BASELINE_HISTORICO*100:.0f}%</div>
+            <div style="font-size:0.72rem; color:#92400e; margin-top:0.15rem;">Referência histórica</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    for i, (mes_num, meta) in enumerate(sorted(METAS_SLA_MENSAL.items())):
+        cor_bg   = "#f0fdf4" if meta <= 0.20 else "#eff6ff" if meta <= 0.30 else "#fef2f2"
+        cor_bdr  = "#bbf7d0" if meta <= 0.20 else "#bfdbfe" if meta <= 0.30 else "#fecaca"
+        cor_txt  = "#166534" if meta <= 0.20 else "#1e40af" if meta <= 0.30 else "#991b1b"
+        cols_metas[i+1].markdown(
+            f"""
+            <div style="background:{cor_bg}; border:1px solid {cor_bdr}; border-radius:12px; padding:0.9rem 1rem; text-align:center;">
+                <div style="font-size:0.68rem; font-weight:700; color:{cor_txt}; text-transform:uppercase; letter-spacing:0.07em;">{meses_nomes.get(mes_num, mes_num)}</div>
+                <div style="font-size:1.6rem; font-weight:800; color:{cor_txt}; margin-top:0.3rem;">{'<'} {meta*100:.0f}%</div>
+                <div style="font-size:0.72rem; color:{cor_txt}; margin-top:0.15rem;">máx. tolerado</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )

@@ -186,7 +186,7 @@ REGRAS = [
     {"estrutura": "UniFiscal > Coleta > Entrada", "keywords": ["nota", "notas", "nfe", "nf", "xml", "sped", "txt", "importação", "importacao", "upload", "chave de acesso"], "peso": 3},
     {"estrutura": "UniFiscal > Parametrizações > Atualização", "keywords": ["cst", "cfop", "ncm", "icms", "ipi", "parametrização", "configuracao", "tributação", "aliquota"], "peso": 7},
     {"estrutura": "UniFiscal > Parametrizações > Dúvidas", "keywords": ["duvida", "como configurar", "como parametrizar"], "peso": 4},
-    {"estrutura": "UniFiscal > Status de Manifesto", "keywords": ["manifesto", "desconhecimento", "cancelada", "recusada", "notas recusadas"], "peso": 6},
+    {"estrutura": "UniFiscal > Status de Manifesto", "keywords": ["manifesto", "desconhecimento", "cancelada", "recusada", "notas recusadas","Foi feito o desconhecimento da operação"], "peso": 6},
     {"estrutura": "UniFiscal > Validações Trib. Entrada", "keywords": ["não está validando", "erro validação", "divergência"], "peso": 5},
     {"estrutura": "UniFiscal > Validações Trib. Saída", "keywords": ["não está validando", "erro validação", "divergência"], "peso": 5},
     {"estrutura": "UniFiscal > Cadastro de Empresa", "keywords": ["cnpj", "nova empresa", "incluir empresa"], "peso": 6},
