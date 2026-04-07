@@ -1,0 +1,73 @@
+﻿id_ticket;data_abertura;status;modulo;caminho;tipo;responsável;prioridade;última_atualização;tempo_gasto
+370;3/20/26 15:56;Concluído;UniFiscal;UniFiscal > D+1 > Upload Arquivo SPED;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;3/23/26 15:17;2 dias 23 horas 21 minutos 
+369;3/19/26 15:48;Cancelado;UniAtend;UniAtend;Melhoria;;Baixa;3/20/26 14:14;0 dias 22 horas 25 minutos 
+368;3/19/26 14:06;Cancelado;UniFiscal;UniFiscal;Erro;PAULO CARLOS LACERDA CONTIERI;Alta;3/20/26 14:15;1 dias 0 horas 9 minutos 
+367;3/19/26 14:05;Cancelado;UniDP;UniDP;Erro;;Alta;3/20/26 14:29;1 dias 0 horas 24 minutos 
+366;3/19/26 13:24;Cancelado;UniAtend;UniAtend;Melhoria;;Baixa;3/20/26 14:24;1 dias 0 horas 59 minutos 
+365;3/18/26 10:35;Em Andamento;UniFiscal;UniFiscal;Erro;JEISY GONCALVES DE SOUSA;Alta;3/18/26 16:45;0 dias 6 horas 9 minutos 
+364;3/18/26 9:12;Cancelado;UniFiscal;UniFiscal > D+1 > Espelho NF-e;Erro;;Alta;3/20/26 14:25;2 dias 5 horas 12 minutos 
+363;3/17/26 15:58;Em Andamento;UniFiscal;UniFiscal > D + 1 > Upload Arquivo SPED;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;3/17/26 17:11;0 dias 1 horas 12 minutos 
+362;3/16/26 16:27;Concluído;UniFiscal;UniFiscal > D+1 > Upload Arquivo SPED;Erro;GUILHERME LOPES PIRES DA SILVA;Média;3/17/26 17:05;1 dias 0 horas 38 minutos 
+361;3/16/26 12:43;Em Andamento;UniFiscal;UniFiscal > D+1 > Espelho CT-e;Erro;GUILHERME LOPES PIRES DA SILVA;Média;3/17/26 17:01;1 dias 4 horas 17 minutos 
+360;3/16/26 11:24;Cancelado;UniDP;UniDP;Erro;ELAINE CALAZANS MOREIRA;Média;3/16/26 14:02;0 dias 2 horas 38 minutos 
+359;3/13/26 9:07;Cancelado;UniFiscal;UniFiscal > D+1 > Upload Arquivo SPED;Melhoria;;Média;3/13/26 12:08;0 dias 3 horas 0 minutos 
+358;3/13/26 8:58;Cancelado;UniFiscal;UniFiscal;Erro;;Alta;3/13/26 12:08;0 dias 3 horas 9 minutos 
+357;3/13/26 8:29;Cancelado;UniDP;UniDP;Erro;GUILHERME LOPES PIRES DA SILVA;Média;3/13/26 12:07;0 dias 3 horas 37 minutos 
+356;12/03/2026 18:04;Em Andamento;UniFiscal;UniFiscal > D+1 > Espelho NF-e;Erro;GUILHERME LOPES PIRES DA SILVA;Média;3/17/26 16:58;4 dias 22 horas 54 minutos 
+355;08/03/2026 13:44;Em Andamento;UniFiscal;UniFiscal;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;10/03/2026 09:30;1 dias 19 horas 46 minutos 
+354;06/03/2026 17:30;Em Andamento;UniFiscal;UniFiscal > D + 1 > Upload Arquivo SPED;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;10/03/2026 09:25;3 dias 15 horas 55 minutos 
+353;06/03/2026 08:26;Cancelado;UniDP;UniDP;Dúvidas;;Média;3/13/26 12:10;7 dias 3 horas 44 minutos 
+352;04/03/2026 14:35;Em Andamento;UniFiscal;UniFiscal > D + 1 > Espelho CT-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;10/03/2026 09:19;5 dias 18 horas 44 minutos 
+351;04/03/2026 13:28;Cancelado;UniDP;UniDP > Meu Portal > Controle de Ponto;Melhoria;GUILHERME LOPES PIRES DA SILVA;Baixa;3/13/26 12:12;8 dias 22 horas 44 minutos 
+350;04/03/2026 10:03;Cancelado;UniFiscal;UniFiscal > D + 1 > Consulta NF-e Saída;Melhoria;ELAINE CALAZANS MOREIRA;Média;04/03/2026 13:42;0 dias 3 horas 39 minutos 
+349;04/03/2026 08:59;Cancelado;UniConfig;UniConfig > Gestão de Usuários > Cadastro de Usuário;Dúvidas;;Baixa;3/13/26 12:12;9 dias 3 horas 13 minutos 
+348;03/03/2026 19:40;Cancelado;UniAtend;UniAtend;Dúvidas;;Baixa;04/03/2026 17:12;0 dias 21 horas 32 minutos 
+347;03/03/2026 06:23;Concluído;UniFiscal;UniFiscal;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;04/03/2026 10:07;1 dias 3 horas 43 minutos 
+346;03/03/2026 06:21;Concluído;UniFiscal;UniFiscal;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/03/2026 09:49;0 dias 3 horas 28 minutos 
+345;02/03/2026 20:13;Concluído;UniFiscal;UniFiscal > D+1 > Upload Arquivo SPED;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/03/2026 09:47;0 dias 13 horas 34 minutos 
+344;02/03/2026 19:49;Concluído;UniFiscal;UniFiscal > D+1 > Upload Arquivo SPED;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/03/2026 09:46;0 dias 13 horas 56 minutos 
+343;02/03/2026 11:39;Concluído;UniFiscal;UniFiscal > D+1 > Espelho CT-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;3/17/26 16:54;15 dias 5 horas 14 minutos 
+342;02/03/2026 11:17;Concluído;UniFiscal;UniFiscal > D+1 > Conferência Fiscal Saída;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/03/2026 09:45;0 dias 22 horas 27 minutos 
+341;01/03/2026 12:15;Concluído;UniFiscal;UniFiscal > D + 1 > Upload Arquivo SPED;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/03/2026 09:43;1 dias 21 horas 28 minutos 
+340;01/03/2026 12:12;Concluído;UniFiscal;UniFiscal > D + 1 > Upload Arquivo SPED;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/03/2026 09:42;1 dias 21 horas 30 minutos 
+339;2/27/26 9:56;Concluído;UniFiscal;UniFiscal;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/03/2026 09:41;3 dias 23 horas 45 minutos 
+338;2/26/26 11:19;Cancelado;UniDP;UniDP;Erro;;Alta;2/27/26 8:04;0 dias 20 horas 45 minutos 
+337;2/24/26 8:08;Novo;UniFiscal;UniFiscal > D + 1 > Conferência Fiscal Saída;Erro;;Alta;2/24/26 8:08;0 dias 0 horas 0 minutos 
+336;2/24/26 8:02;Novo;UniFiscal;UniFiscal > D + 1 > Conferência Fiscal Saída;Erro;;Alta;2/24/26 8:02;0 dias 0 horas 0 minutos 
+335;2/24/26 7:56;Em Andamento;UniFiscal;UniFiscal > D+1 > Conferência Fiscal Saída;Erro;JEISY GONCALVES DE SOUSA;Alta;03/03/2026 08:44;7 dias 0 horas 48 minutos 
+334;2/21/26 19:05;Concluído;UniFiscal;UniFiscal > D+1 > Espelho NF-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;04/03/2026 10:03;10 dias 14 horas 58 minutos 
+333;2/19/26 9:50;Concluído;UniFiscal;UniFiscal > D + 1 > Conferência Fiscal Saída;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;2/24/26 8:48;4 dias 22 horas 58 minutos 
+332;2/19/26 8:51;Cancelado;UniAtend;UniAtend > Início > Tickets;Erro;GUILHERME LOPES PIRES DA SILVA;Média;2/19/26 11:24;0 dias 2 horas 33 minutos 
+331;2/18/26 12:06;Concluído;UniFiscal;UniFiscal > D+1 > Espelho NF-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;2/24/26 8:49;5 dias 20 horas 42 minutos 
+330;2/13/26 13:38;Concluído;UniDP;UniDP > Consultas > Consultas Holerites;Erro;GUILHERME LOPES PIRES DA SILVA;Média;2/13/26 13:39;0 dias 0 horas 1 minutos 
+329;2/13/26 11:34;Concluído;UniDP;UniDP > Importações > Upload de Holerite;Erro;GUILHERME LOPES PIRES DA SILVA;Baixa;2/13/26 11:49;0 dias 0 horas 14 minutos 
+328;2/13/26 11:33;Concluído;UniDP;UniDP > Cadastros > Colaboradores;Erro;GUILHERME LOPES PIRES DA SILVA;Baixa;2/13/26 11:49;0 dias 0 horas 15 minutos 
+327;2/13/26 11:31;Concluído;UniDP;UniDP > Importações > Upload de Holerite;Erro;GUILHERME LOPES PIRES DA SILVA;Média;2/13/26 11:48;0 dias 0 horas 16 minutos 
+326;2/13/26 11:30;Concluído;UniDP;UniDP > Administração pessoal > Rescisão;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;2/13/26 11:45;0 dias 0 horas 15 minutos 
+325;2/13/26 11:27;Concluído;UniDP;UniDP > Administração pessoal > Admissão;Erro;;Alta;2/13/26 11:44;0 dias 0 horas 16 minutos 
+324;2/13/26 11:26;Concluído;UniDP;UniDP > Gestão Hierárquica > Coordenadores;Erro;;Alta;2/13/26 11:43;0 dias 0 horas 17 minutos 
+323;2/13/26 11:25;Concluído;UniDP;UniDP > Gestão de Ponto > Gestão de Justificativas;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;2/13/26 11:42;0 dias 0 horas 17 minutos 
+322;2/13/26 11:23;Concluído;UniDP;UniDP > Gestão de Ponto > Gestão de Justificativas;Melhoria;GUILHERME LOPES PIRES DA SILVA;Alta;2/13/26 11:41;0 dias 0 horas 17 minutos 
+321;2/13/26 11:20;Concluído;UniDP;UniDP > Gestão de Ponto > Relatório Controle de Ponto;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;2/13/26 11:40;0 dias 0 horas 20 minutos 
+320;2/13/26 11:19;Concluído;UniDP;UniDP > Administração pessoal > Admissão;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;2/13/26 11:39;0 dias 0 horas 20 minutos 
+319;2/13/26 11:16;Concluído;UniDP;UniDP > Gestão de Ponto > Relatório Controle de Ponto;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;2/13/26 11:39;0 dias 0 horas 22 minutos 
+318;2/13/26 11:14;Concluído;UniDP;UniDP > Administração pessoal > Admissão;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;2/13/26 11:38;0 dias 0 horas 23 minutos 
+317;2/13/26 11:12;Concluído;UniDP;UniDP > Gestão de Ponto > Gestão de Justificativas;Dúvidas;GUILHERME LOPES PIRES DA SILVA;Alta;2/13/26 11:37;0 dias 0 horas 24 minutos 
+316;12/02/2026 17:49;Concluído;UniAtend;UniAtend > Início > Tickets;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;2/24/26 8:51;11 dias 15 horas 2 minutos 
+315;11/02/2026 15:35;Concluído;UniDP;UniDP > Administração pessoal > Programação de Férias;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;11/02/2026 15:40;0 dias 0 horas 5 minutos 
+314;11/02/2026 15:32;Concluído;UniDP;UniDP > Cadastros > Colaboradores;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;11/02/2026 15:39;0 dias 0 horas 7 minutos 
+313;05/02/2026 18:09;Concluído;UniFiscal;UniFiscal > D+1 > Espelho NF-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;11/02/2026 16:25;5 dias 22 horas 15 minutos 
+312;04/02/2026 13:34;Cancelado;UniAtend;UniAtend > Início > Tickets;Dúvidas;;Alta;04/02/2026 13:39;0 dias 0 horas 4 minutos 
+311;02/02/2026 11:03;Cancelado;UniDP;UniDP > Gestão de Ponto > Controle de Ponto;Erro;;Alta;04/02/2026 08:56;1 dias 21 horas 52 minutos 
+310;02/02/2026 06:23;Concluído;UniFiscal;UniFiscal > D+1 > Espelho CT-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;11/02/2026 15:42;9 dias 9 horas 18 minutos 
+309;1/30/26 9:45;Cancelado;UniDP;UniDP;Melhoria;;Média;04/02/2026 13:40;5 dias 3 horas 55 minutos 
+308;1/30/26 9:38;Cancelado;UniDP;UniDP;Melhoria;;Média;04/02/2026 13:40;5 dias 4 horas 1 minutos 
+307;1/27/26 16:24;Concluído;UniFiscal;UniFiscal;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/02/2026 14:49;6 dias 22 horas 25 minutos 
+306;1/23/26 17:04;Concluído;UniFiscal;UniFiscal > D+1 > Conferência Fiscal Saída;Erro;JEISY GONCALVES DE SOUSA;Alta;03/02/2026 17:42;11 dias 0 horas 37 minutos 
+305;1/23/26 16:14;Concluído;UniFiscal;UniFiscal > D+1 > Espelho CT-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/02/2026 10:35;10 dias 18 horas 20 minutos 
+304;1/23/26 13:00;Concluído;UniFiscal;UniFiscal > D+1 > Conferência Fiscal Saída;Erro;JEISY GONCALVES DE SOUSA;Alta;05/02/2026 09:09;12 dias 20 horas 8 minutos 
+303;1/23/26 10:15;Concluído;UniFiscal;UniFiscal > D+1 > Conferência Fiscal Saída;Melhoria;JEISY GONCALVES DE SOUSA;Alta;03/02/2026 17:38;11 dias 7 horas 23 minutos 
+302;1/23/26 8:49;Concluído;UniFiscal;UniFiscal > D+1 > Espelho NF-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/02/2026 10:35;11 dias 1 horas 45 minutos 
+301;1/23/26 8:39;Concluído;UniFiscal;UniFiscal > D+1 > Espelho NF-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/02/2026 10:26;11 dias 1 horas 47 minutos 
+300;1/23/26 8:33;Concluído;UniFiscal;UniFiscal > D+1 > Espelho CT-e;Erro;GUILHERME LOPES PIRES DA SILVA;Alta;03/02/2026 10:26;11 dias 1 horas 52 minutos 
+299;1/19/26 17:19;Cancelado;UniDP;UniDP;Erro;;Alta;04/02/2026 13:40;15 dias 20 horas 21 minutos 

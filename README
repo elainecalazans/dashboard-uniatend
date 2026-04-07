@@ -1,0 +1,180 @@
+# 🎯 UniATEND Dashboard 1.0
+
+Pipeline completo de classificação automática de tickets + dashboard gerencial de SLA e qualidade.
+
+---
+
+## 📌 Visão Geral
+
+Este projeto foi desenvolvido para transformar dados brutos de atendimento em inteligência operacional.
+
+Ele é composto por dois módulos principais:
+
+---
+
+### 🔹 Algoritmo 1 — Classificação de Tickets
+
+📁 Local: `classificar_tickets_textos/`
+
+Responsável por:
+
+- Cruzar dados de `tickets.csv` + `textos.csv`
+- Corrigir automaticamente problemas de estrutura nos arquivos CSV
+- Limpar e padronizar textos
+- Classificar automaticamente:
+  - Categoria
+  - Subcategoria
+- Aplicar regras baseadas em palavras-chave (keywords)
+- Calcular SLA:
+  - Piso
+  - Teto
+  - % de consumo
+  - Status
+- Preservar edições manuais (modelo híbrido)
+- Gerar o output final: relatorio_classificado.xlsx
+
+
+---
+
+### 🔹 Algoritmo 2 — Dashboard Gerencial
+
+📁 Local: `relatorio_dashboard/`
+
+Responsável por:
+
+- Consumir o `relatorio_classificado.xlsx`
+- Permitir análise interativa via filtros:
+  - Período
+  - Módulo
+  - Status
+- Apresentar KPIs estratégicos:
+  - Volume de tickets
+  - % de estouro de SLA
+  - % de causa raiz preenchida
+
+#### Visualizações disponíveis:
+
+- 📊 Evolução do SLA (Real vs Meta)
+- 📈 Tendência de qualidade (Causa Raiz)
+- 📋 Consolidação por:
+  - Categoria
+  - Módulo
+  - Tipo
+- 🔍 Auditoria detalhada por ticket
+
+---
+
+## 🧠 Diferenciais do Projeto
+
+- ✔️ Classificação automática baseada em regras + NLP leve  
+- ✔️ Sistema híbrido (automação + edição manual preservada)  
+- ✔️ Correção automática de arquivos CSV (resiliência em dados reais)  
+- ✔️ Motor de SLA inteligente com análise contextual  
+- ✔️ Dashboard com foco gerencial e tomada de decisão  
+- ✔️ Estrutura pronta para evolução para produto (escalável)
+
+---
+
+## 📁 Estrutura do Projeto
+DASHBOARD_UNIATEND/
+│
+├── classificar_tickets_textos/
+│ ├── app.py
+│ ├── tickets.csv
+│ ├── textos.csv
+│ └── relatorio_classificado.xlsx (gerado)
+│
+├── relatorio_dashboard/
+│ ├── app.py
+│ ├── relatorio_classificado.xlsx
+│ └── 1775153144791_image.png
+│
+└── README.md
+
+---
+
+## ⚙️ Como Executar o Projeto
+
+### 🔹 1. Rodar o Pipeline de Classificação
+
+No terminal:
+
+```bash
+cd classificar_tickets_textos
+python app.py
+Isso irá gerar o arquivo: relatorio_classificado.xlsx
+
+🔹 2. Rodar o Dashboard
+cd relatorio_dashboard
+streamlit run app.py
+
+O dashboard abrirá automaticamente no navegador.
+
+📊 Regras de Negócio
+
+A classificação segue uma estrutura hierárquica:
+Módulo > Categoria > Subcategoria
+
+Baseada em:
+
+Palavras-chave (keywords)
+Sinônimos para ampliar cobertura semântica
+Peso por relevância
+Contexto do módulo (UniFiscal / UniDP)
+⏱️ Motor de SLA
+
+O sistema calcula automaticamente:
+
+SLA Piso
+SLA Teto
+% de Consumo do SLA
+Status do SLA:
+Dentro do prazo
+Acima do teto
+Abaixo do piso
+SLA não definido
+Sem registro de tempo
+🔄 Lógica Incremental (Diferencial Crítico)
+
+O sistema NÃO sobrescreve trabalho manual.
+
+Ele:
+
+Mantém histórico anterior
+Atualiza apenas novos tickets
+Preserva:
+Categoria
+Subcategoria
+Causa Raiz
+Ajustes manuais de SLA
+
+Isso permite uso contínuo sem perda de curadoria humana.
+
+📦 Requisitos
+
+Instale as dependências:
+pip install pandas numpy streamlit plotly openpyxl
+
+🚀 Roadmap (Evoluções Futuras)
+ Transformar em aplicação web (React + API)
+ Deploy em nuvem (Streamlit Cloud / Vercel)
+ Substituir regras por modelo de Machine Learning
+ Integração direta com banco de dados
+ Automatização de ingestão de dados
+📊 Aplicação no Negócio
+
+Este projeto permite:
+
+Identificar gargalos operacionais
+Medir eficiência de atendimento
+Acompanhar cumprimento de SLA
+Melhorar qualidade de documentação (causa raiz)
+Apoiar decisões gerenciais com dados
+👩‍💻 Autoria
+
+Projeto desenvolvido para análise e inteligência operacional de atendimento.
+
+⚠️ Observações
+O arquivo relatorio_classificado.xlsx é gerado automaticamente e pode ser ignorado no versionamento.
+Recomenda-se uso de .gitignore para evitar subida de arquivos grandes.
+
