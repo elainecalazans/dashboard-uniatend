@@ -1,0 +1,9 @@
+{
+  "baseline_historico": 0.48,
+  "metas_sla_mensal": {
+    "4": 0.35,
+    "5": 0.25,
+    "6": 0.15
+  },
+  "brand_colors": ["#02683d", "#68bd46", "#1a8c55", "#a8d96a", "#014d2d", "#4aae6f"]
+}

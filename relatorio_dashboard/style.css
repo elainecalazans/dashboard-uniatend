@@ -1,0 +1,519 @@
+/* ── Google Font ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
+/* ─────────────────────────────────────────
+   BASE
+───────────────────────────────────────── */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif !important;
+}
+
+.stApp {
+    background-color: #f0f4f1;
+    color: #1f2937;
+}
+
+/* ─────────────────────────────────────────
+   SIDEBAR
+───────────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background: #02683d !important;
+    border-right: none !important;
+    box-shadow: 8px 0 32px rgba(2, 104, 61, 0.15) !important;
+    border-radius: 0 24px 24px 0 !important;
+}
+
+[data-testid="stSidebar"] > div:first-child {
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+    padding: 0 1rem 2rem 1rem;
+    background: transparent !important;
+}
+
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span:not([data-baseweb]),
+[data-testid="stSidebar"] div.stMarkdown p,
+[data-testid="stSidebar"] .stHeader,
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: #ffffff !important;
+}
+
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] .stWidgetLabel p,
+[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
+    color: #b2dfce !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.07em !important;
+}
+
+[data-testid="stSidebar"] hr {
+    border: none !important;
+    border-top: 1px solid rgba(104, 189, 70, 0.3) !important;
+    margin: 1rem 0 !important;
+}
+
+[data-testid="stSidebar"] .stDateInput > div > div,
+[data-testid="stSidebar"] .stMultiSelect > div > div,
+[data-testid="stSidebar"] [data-baseweb="select"] > div {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(104, 189, 70, 0.45) !important;
+    border-radius: 10px !important;
+    color: #ffffff !important;
+    transition: border-color 0.2s;
+}
+
+[data-testid="stSidebar"] [data-baseweb="select"] > div:hover,
+[data-testid="stSidebar"] .stDateInput > div > div:focus-within {
+    border-color: #68bd46 !important;
+    background-color: rgba(255,255,255,0.18) !important;
+}
+
+[data-testid="stSidebar"] [data-baseweb="select"] input,
+[data-testid="stSidebar"] [data-baseweb="select"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] input[type="text"] {
+    color: #ffffff !important;
+}
+
+[data-testid="stSidebar"] [data-baseweb="tag"] {
+    background-color: #68bd46 !important;
+    border: none !important;
+    border-radius: 6px !important;
+}
+[data-testid="stSidebar"] [data-baseweb="tag"] span {
+    color: #ffffff !important;
+}
+
+[data-testid="stSidebar"] [data-baseweb="select"] svg,
+[data-testid="stSidebar"] .stDateInput svg {
+    fill: rgba(255,255,255,0.7) !important;
+}
+
+.sidebar-section-title {
+    color: #a8dfc0 !important;
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ─────────────────────────────────────────
+   MAIN CONTENT
+───────────────────────────────────────── */
+.main .block-container {
+    padding-top: 1.8rem;
+    padding-left: 2.4rem;
+    padding-right: 2.4rem;
+    max-width: 1440px;
+}
+
+.stApp h1 {
+    font-size: 1.65rem !important;
+    font-weight: 700 !important;
+    color: #013d24 !important;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.1rem;
+    line-height: 1.2;
+}
+
+.title-accent {
+    display: inline-block;
+    width: 5px;
+    height: 1.5rem;
+    background: linear-gradient(180deg, #68bd46 0%, #02683d 100%);
+    border-radius: 4px;
+    margin-right: 0.55em;
+    vertical-align: middle;
+}
+
+/* ─────────────────────────────────────────
+   METRIC CARDS
+───────────────────────────────────────── */
+[data-testid="stMetric"] {
+    background: #ffffff !important;
+    border-radius: 16px !important;
+    padding: 1.1rem 1.35rem 0.95rem !important;
+    border: 1px solid #dce8e1 !important;
+    box-shadow: 0 2px 14px rgba(2, 104, 61, 0.07) !important;
+    transition: box-shadow 0.25s ease, transform 0.25s ease !important;
+}
+[data-testid="stMetric"]:hover {
+    box-shadow: 0 8px 28px rgba(2, 104, 61, 0.13) !important;
+    transform: translateY(-2px) !important;
+}
+
+[data-testid="stMetricLabel"] {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+[data-testid="stMetricLabel"] > div,
+[data-testid="stMetricLabel"] p {
+    font-size: 0.73rem !important;
+    font-weight: 600 !important;
+    color: #7a9e88 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.07em !important;
+}
+
+[data-testid="stMetricLabel"] div[data-testid="stTooltipHoverTarget"] svg {
+    fill: #a7b5ac !important;
+    width: 15px !important;
+    height: 15px !important;
+}
+
+[data-testid="stMetricValue"] > div {
+    font-size: 1.9rem !important;
+    font-weight: 700 !important;
+    color: #02683d !important;
+    line-height: 1.1 !important;
+}
+
+[data-testid="stMetricDelta"] > div {
+    font-size: 0.78rem !important;
+    font-weight: 800 !important;
+    margin-top: 0.15rem !important;
+}
+
+/* ─────────────────────────────────────────
+   CONTAINERS COM BORDA
+───────────────────────────────────────── */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 18px !important;
+    overflow: hidden !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"] > div {
+    background: #ffffff !important;
+    border-radius: 18px !important;
+    border: 1px solid #dce8e1 !important;
+    box-shadow: 0 3px 18px rgba(2, 104, 61, 0.06) !important;
+    padding: 1.2rem 1.4rem !important;
+}
+
+/* ─────────────────────────────────────────
+   TABS
+───────────────────────────────────────── */
+.stTabs [data-baseweb="tab-list"] {
+    background: transparent !important;
+    gap: 0.2rem !important;
+    border-bottom: 2px solid #cddfd5 !important;
+}
+.stTabs [data-baseweb="tab"] {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 0 !important;
+    padding: 0.6rem 1.3rem !important;
+    margin-bottom: -2px !important;
+    font-size: 0.86rem !important;
+    font-weight: 500 !important;
+    color: #718a7b !important;
+    transition: color 0.18s, border-color 0.18s !important;
+}
+.stTabs [data-baseweb="tab"]:hover {
+    color: #02683d !important;
+}
+.stTabs [aria-selected="true"] {
+    color: #02683d !important;
+    font-weight: 700 !important;
+    border-bottom: 3px solid #68bd46 !important;
+}
+.stTabs [data-baseweb="tab-panel"] {
+    padding-top: 1.5rem !important;
+}
+
+.stApp h5 {
+    color: #02683d !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.09em !important;
+    border-bottom: 1px solid #dce8e1 !important;
+    padding-bottom: 0.4rem !important;
+    margin-bottom: 1rem !important;
+}
+
+.stRadio label p {
+    font-size: 0.85rem !important;
+    color: #3a4f40 !important;
+}
+.stRadio [data-baseweb="radio"] div:first-child {
+    border-color: #68bd46 !important;
+}
+.stRadio [data-baseweb="radio"][data-checked="true"] div:first-child {
+    background-color: #68bd46 !important;
+    border-color: #68bd46 !important;
+}
+
+/* ─────────────────────────────────────────
+   DATAFRAMES
+───────────────────────────────────────── */
+[data-testid="stDataFrame"] {
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    border: 1px solid #dce8e1 !important;
+    box-shadow: 0 2px 10px rgba(2, 104, 61, 0.05) !important;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #eaf2ec; }
+::-webkit-scrollbar-thumb { background: #9dcfae; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #68bd46; }
+
+/* ─────────────────────────────────────────
+   CARTÕES SLA
+───────────────────────────────────────── */
+.sla-card {
+    background: #ffffff;
+    border: 1px solid #dce8e1;
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
+    box-shadow: 0 2px 10px rgba(2, 104, 61, 0.06);
+    margin-bottom: 0.8rem;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.sla-card:hover {
+    box-shadow: 0 6px 22px rgba(2, 104, 61, 0.12);
+    transform: translateY(-2px);
+}
+.sla-card-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #013d24;
+    margin-bottom: 0.45rem;
+}
+.sla-card-modulo {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 10px;
+    border-radius: 20px;
+    margin-bottom: 0.6rem;
+}
+.sla-card-modulo.unifiscal { background: #3362a9; color: #ffffff; }
+.sla-card-modulo.unidp     { background: #7b4e99; color: #ffffff; }
+.sla-card-modulo.ambos     { background: #fef3c7; color: #92400e; }
+.sla-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 8px;
+    margin-right: 6px;
+}
+.sla-badge.piso { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.sla-badge.teto { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.sla-badge.na   { background: #f3f4f6; color: #6b7280; border: 1px solid #e5e7eb; font-style: italic; }
+.sla-nota {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #d97706;
+    font-style: italic;
+}
+.download-hero {
+    background: linear-gradient(135deg, #02683d 0%, #1a8c55 100%);
+    border-radius: 18px;
+    padding: 2rem 2.2rem;
+    color: #ffffff;
+    margin-bottom: 1.6rem;
+}
+.download-hero h3 {
+    color: #ffffff !important;
+    font-size: 1.1rem !important;
+    margin-bottom: 0.3rem !important;
+    border: none !important;
+    padding: 0 !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+.download-hero p {
+    color: rgba(255,255,255,0.78) !important;
+    font-size: 0.85rem !important;
+    margin: 0 !important;
+}
+
+button[kind="secondary"] {
+    background-color: #68bd46 !important;
+    color: white !important;
+}
+button[kind="secondary"]:hover {
+    background-color: #02683d !important;
+}
+
+/* ─────────────────────────────────────────
+   BLINDAGEM DARK MODE — Expander
+   (o st.expander usa variáveis CSS internas
+    que escapam ao config.toml; cobertura
+    por seletor explícito em cada camada)
+───────────────────────────────────────── */
+details,
+details[open] {
+    background-color: #ffffff !important;
+}
+details > div,
+details > section {
+    background-color: #ffffff !important;
+    color: #1f2937 !important;
+}
+details summary {
+    background-color: #f8fafc !important;
+    color: #1f2937 !important;
+}
+details summary p,
+details summary span {
+    color: #1f2937 !important;
+}
+
+/* Conteúdo interno do expander — todas as camadas de container Streamlit */
+[data-testid="stExpander"] details > div,
+[data-testid="stExpander"] [data-testid="stVerticalBlock"],
+[data-testid="stExpander"] [data-testid="stHorizontalBlock"],
+[data-testid="stExpander"] [data-testid="column"],
+[data-testid="stExpander"] .element-container,
+[data-testid="stExpander"] .stMarkdown {
+    background-color: #ffffff !important;
+    color: #1f2937 !important;
+}
+
+/* Radio widget — container e labels */
+.stRadio > div {
+    background-color: transparent !important;
+}
+.stRadio label,
+.stRadio label p,
+.stRadio label span {
+    color: #1f2937 !important;
+    background-color: transparent !important;
+}
+
+/* Células de colunas (st.columns) em qualquer contexto */
+[data-testid="column"] {
+    background-color: transparent !important;
+}
+
+/* ─────────────────────────────────────────
+   BLINDAGEM DARK MODE — Área principal
+   (o config.toml já fixa o tema base;
+    estas regras cobrem os seletores que
+    ainda escapam via variáveis CSS)
+───────────────────────────────────────── */
+
+/* Fundo geral da aplicação */
+.stApp, [data-testid="stAppViewContainer"] {
+    background-color: #f0f4f1 !important;
+    color: #1f2937 !important;
+}
+
+/* Inputs de texto na área principal */
+.stTextInput > div > div > input,
+.stTextInput > div > div {
+    background-color: #ffffff !important;
+    color: #1f2937 !important;
+    border-color: #dce8e1 !important;
+}
+.stTextInput > div > div:focus-within {
+    border-color: #02683d !important;
+    box-shadow: 0 0 0 2px rgba(2,104,61,0.15) !important;
+}
+
+/* Selectbox e Multiselect na área principal */
+.stSelectbox > div > div,
+.stMultiSelect > div > div {
+    background-color: #ffffff !important;
+    color: #1f2937 !important;
+    border-color: #dce8e1 !important;
+}
+.stSelectbox [data-baseweb="select"] > div,
+.stMultiSelect [data-baseweb="select"] > div {
+    background-color: #ffffff !important;
+    color: #1f2937 !important;
+}
+.stSelectbox [data-baseweb="select"] span,
+.stMultiSelect [data-baseweb="select"] span {
+    color: #1f2937 !important;
+}
+
+/* Dropdown (popover de opções) */
+[data-baseweb="popover"],
+[data-baseweb="popover"] [data-baseweb="menu"],
+[data-baseweb="menu"],
+ul[data-baseweb="menu"] {
+    background-color: #ffffff !important;
+    border: 1px solid #dce8e1 !important;
+    box-shadow: 0 4px 20px rgba(2, 104, 61, 0.1) !important;
+}
+[data-baseweb="option"],
+li[role="option"] {
+    background-color: #ffffff !important;
+    color: #1f2937 !important;
+}
+[data-baseweb="option"]:hover,
+li[role="option"]:hover {
+    background-color: #f0fdf4 !important;
+    color: #02683d !important;
+}
+[aria-selected="true"][data-baseweb="option"] {
+    background-color: #e6f4ec !important;
+    color: #02683d !important;
+}
+
+/* Expander — borda e forma (conteúdo coberto pelo bloco acima) */
+[data-testid="stExpander"] {
+    background-color: #ffffff !important;
+    border: 1px solid #dce8e1 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+
+/* Caixas de alerta (st.info, st.warning, st.error, st.success) */
+[data-testid="stAlert"] {
+    background-color: #f0fdf4 !important;
+    color: #166534 !important;
+    border-left-color: #02683d !important;
+}
+[data-testid="stAlert"][data-type="warning"] {
+    background-color: #fffbeb !important;
+    color: #92400e !important;
+    border-left-color: #f59e0b !important;
+}
+[data-testid="stAlert"][data-type="error"] {
+    background-color: #fef2f2 !important;
+    color: #991b1b !important;
+    border-left-color: #dc2626 !important;
+}
+[data-testid="stAlert"] p,
+[data-testid="stAlert"] span {
+    color: inherit !important;
+}
+
+/* Labels de widgets na área principal */
+.stWidgetLabel p,
+[data-testid="stWidgetLabel"] p,
+.stMarkdown p,
+label {
+    color: #1f2937 !important;
+}
+
+/* Download button (st.download_button) */
+[data-testid="stDownloadButton"] button {
+    background-color: #68bd46 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+[data-testid="stDownloadButton"] button:hover {
+    background-color: #02683d !important;
+}
