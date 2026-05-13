@@ -1,0 +1,14 @@
+# Dados de produção — não versionar (LGPD)
+*.csv
+*.xlsx
+
+# Lock files do Excel
+~$*
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Claude Code
+.claude/

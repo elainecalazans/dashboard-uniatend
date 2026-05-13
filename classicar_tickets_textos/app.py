@@ -3,6 +3,7 @@ import re
 import csv
 import unicodedata
 import os
+import json
 import numpy as np
 
 # ==============================
@@ -16,8 +17,8 @@ try:
     if "id_ticket" not in relatorio1.columns:
         raise Exception("Estrutura inválida")
 
-except:
-    print("⚠️ Estrutura do tickets.csv inválida. Aplicando correção automática...")
+except Exception as e:
+    print(f"⚠️ Estrutura do tickets.csv inválida ({e}). Aplicando correção automática...")
 
     relatorio1 = pd.read_csv(
         "tickets.csv",
@@ -48,6 +49,15 @@ except:
     primeira_linha = relatorio1.iloc[0].astype(str).str.lower()
     if any("id_ticket" in v for v in primeira_linha):
         relatorio1 = relatorio1.iloc[1:]
+
+try:
+    with open("tickets.csv", encoding="utf-8-sig") as _fc:
+        _total_bruto = sum(1 for _ in _fc) - 1
+    _descartadas = _total_bruto - len(relatorio1)
+    if _descartadas > 0:
+        print(f"⚠️ tickets.csv: {_descartadas} linha(s) ignorada(s) por formato inválido.")
+except Exception:
+    pass
 
 # ==============================
 # 1. CARREGAR ARQUIVOS
@@ -84,6 +94,15 @@ if "id_ticket" not in relatorio2.columns:
 
     relatorio2 = relatorio2.iloc[:, :4]
     relatorio2.columns = ["id_ticket", "nome", "texto", "criado_em"]
+
+try:
+    with open("textos.csv", encoding="utf-8-sig") as _fc:
+        _total_bruto = sum(1 for _ in _fc) - 1
+    _descartadas = _total_bruto - len(relatorio2)
+    if _descartadas > 0:
+        print(f"⚠️ textos.csv: {_descartadas} linha(s) ignorada(s) por formato inválido.")
+except Exception:
+    pass
 
 # ==============================
 # 2. LIMPEZA E PADRONIZAÇÃO DEFENSIVA
@@ -167,16 +186,16 @@ df_base.rename(columns={
 # ==============================
 
 SINONIMOS_COLETA = [
-    "não apareceu", "nao apareceu", "não aparecem", "nao aparecem",
-    "não subiu", "nao subiu", "não subiram", "nao subiram",
-    "não consta", "nao consta", "não constam", "nao constam",
-    "não foi importada", "nao foi importada", "não foram importadas", "nao foram importadas",
-    "não foi coletada", "nao foi coletada", "não foram coletadas", "nao foram coletadas",
-    "não está aparecendo", "nao esta aparecendo", "não estão aparecendo", "nao estao aparecendo",
-    "não está listada", "nao esta listada", "não estão listadas", "nao estao listadas",
-    "não buscou", "nao buscou", "não buscaram", "nao buscaram",
-    "não carregou", "nao carregou", "não carregaram", "nao carregaram",
-    "não sincronizando", "nao sincronizando", "erro importação", "erro importacao"
+    "nao apareceu", "nao aparecem",
+    "nao subiu", "nao subiram",
+    "nao consta", "nao constam",
+    "nao foi importada", "nao foram importadas",
+    "nao foi coletada", "nao foram coletadas",
+    "nao esta aparecendo", "nao estao aparecendo",
+    "nao esta listada", "nao estao listadas",
+    "nao buscou", "nao buscaram",
+    "nao carregou", "nao carregaram",
+    "nao sincronizando", "erro importacao"
 ]
 
 REGRAS = [
@@ -187,8 +206,8 @@ REGRAS = [
     {"estrutura": "UniFiscal > Parametrizações > Atualização", "keywords": ["cst", "cfop", "ncm", "icms", "ipi", "parametrização", "configuracao", "tributação", "aliquota"], "peso": 7},
     {"estrutura": "UniFiscal > Parametrizações > Dúvidas", "keywords": ["duvida", "como configurar", "como parametrizar"], "peso": 4},
     {"estrutura": "UniFiscal > Status de Manifesto", "keywords": ["manifesto", "desconhecimento", "cancelada", "recusada", "notas recusadas","Foi feito o desconhecimento da operação"], "peso": 6},
-    {"estrutura": "UniFiscal > Validações Trib. Entrada", "keywords": ["não está validando", "erro validação", "divergência"], "peso": 5},
-    {"estrutura": "UniFiscal > Validações Trib. Saída", "keywords": ["não está validando", "erro validação", "divergência"], "peso": 5},
+    {"estrutura": "UniFiscal > Validações Trib. Entrada", "keywords": ["nao esta validando", "erro validacao", "divergencia", "entrada", "nfe entrada", "nota entrada"], "peso": 5},
+    {"estrutura": "UniFiscal > Validações Trib. Saída", "keywords": ["nao esta validando", "erro validacao", "divergencia", "saida", "nfe saida", "nota saida"], "peso": 5},
     {"estrutura": "UniFiscal > Cadastro de Empresa", "keywords": ["cnpj", "nova empresa", "incluir empresa"], "peso": 6},
     {"estrutura": "UniFiscal > Melhorias", "keywords": ["melhoria", "sugestao", "poderia"], "peso": 2},
     {"estrutura": "UniDP > Férias", "keywords": ["ferias", "férias", "gozo"], "peso": 5},
@@ -200,6 +219,12 @@ REGRAS = [
     {"estrutura": "UniDP > Falhas no Cálculo de Banco de Horas", "keywords": ["banco de horas"], "peso": 5},
     {"estrutura": "UniDP > Parametrizações > Rubricas de Holerite", "keywords": ["holerite", "rubrica"], "peso": 6}
 ]
+
+# ==============================
+# REGRAS SLA
+# ==============================
+with open("../sla_rules.json", encoding="utf-8") as _f:
+    REGRAS_SLA = json.load(_f)
 
 # ==============================
 # 7. FUNÇÕES AUXILIARES
@@ -248,7 +273,7 @@ def classificar(texto, modulo):
 
     if melhor_match:
         if melhor_match[0] == "Coleta":
-            if not any(p in texto for p in ["nfe", "cte", "saida", "saída"]):
+            if not any(p in texto for p in ["nfe", "cte", "saida"]):
                 return ("Inserir XML", "Genérico")
 
         if len(melhor_match) == 1:
@@ -275,13 +300,10 @@ def converter_tempo_para_horas(tempo_str):
     return round(total_horas, 2)
 
 # ==============================
-# 8. MOTOR DE SLA (BLINDADO COM NLP E IDENTIFICADOR DE REGRAS)
+# 8. MOTOR DE SLA
 # ==============================
 
 def avaliar_sla(modulo, categoria, subcategoria, tempo_horas):
-    piso_h = np.nan
-    teto_h = np.nan
-
     def norm(texto):
         if pd.isna(texto): return ""
         t = str(texto).strip().lower()
@@ -292,47 +314,30 @@ def avaliar_sla(modulo, categoria, subcategoria, tempo_horas):
     cat_n = norm(categoria)
     sub_n = norm(subcategoria)
 
-    # Mapeamento
-    if mod_n == "unifiscal":
-        if cat_n == "inserir xml" or sub_n == "generico":
-            piso_h, teto_h = 2.0, 24.0
-        elif cat_n == "cadastro de empresa":
-            piso_h, teto_h = 3.0, 24.0
-        elif cat_n == "parametrizacoes" and sub_n == "duvidas":
-            piso_h, teto_h = 6.0, 24.0
-        elif cat_n == "parametrizacoes" and sub_n == "atualizacao":
-            piso_h, teto_h = 24.2, 120.0
-        elif cat_n == "status de manifesto":
-            piso_h, teto_h = 153.6, 168.0
-        elif cat_n in ["validacoes trib. entrada", "validacoes trib entrada", "validacoes trib. saida", "validacoes trib saida"]:
-            piso_h, teto_h = 3.0, 24.0
-        elif cat_n == "coleta": 
-            piso_h, teto_h = 148.8, 168.0
-
-    elif mod_n == "unidp":
-        if cat_n == "ferias" or sub_n == "adicionar opcoes de ferias":
-            piso_h, teto_h = 2.0, 24.0
-        elif cat_n == "parametrizacoes" and sub_n == "rubricas de holerite":
-            piso_h, teto_h = 2.0, 24.0
-        elif cat_n == "permissoes":
-            piso_h, teto_h = 1.0, 24.0
-        elif cat_n == "upload" and sub_n == "atualizacao de colaboradores":
-            piso_h, teto_h = 2.0, 24.0
-        elif cat_n in ["falhas em integracoes", "falhas em salvamento de formularios", "falhas em lancamento de ponto"]:
-            piso_h, teto_h = 36.0, 72.0
-        elif cat_n == "falhas no calculo de banco de horas":
-            piso_h, teto_h = 48.0, 72.0
-
-    # 🔥 IDENTIFICADOR DE REGRA (O CORAÇÃO DA ASSISTÊNCIA HÍBRIDA)
-    # Se o sistema achou limites, ou se é a regra especial "Melhorias", ele SABE o que fazer.
+    piso_h = np.nan
+    teto_h = np.nan
     tem_regra = False
-    if (not pd.isna(piso_h) and not pd.isna(teto_h)) or (mod_n == "unifiscal" and cat_n == "melhorias"):
-        tem_regra = True
+    prazo_na = False
 
-    # Definição do Status Analítico
+    for regra in REGRAS_SLA:
+        if norm(regra["modulo"]) not in {mod_n, "ambos"}:
+            continue
+        if not any(norm(c) == cat_n for c in regra.get("categoria", [])):
+            continue
+        subs = regra.get("subcategoria", [])
+        if subs and not any(norm(s) == sub_n for s in subs):
+            continue
+        tem_regra = True
+        if regra.get("piso_horas") is None:
+            prazo_na = True
+        else:
+            piso_h = regra["piso_horas"]
+            teto_h = regra["teto_horas"]
+        break
+
     if tempo_horas == 0.0:
         status = "Sem Registro de Tempo"
-    elif mod_n == "unifiscal" and cat_n == "melhorias":
+    elif prazo_na:
         status = "Prazo Não Aplicável"
     elif not tem_regra:
         status = "SLA Não Definido"
@@ -343,9 +348,8 @@ def avaliar_sla(modulo, categoria, subcategoria, tempo_horas):
     else:
         status = "Dentro do Prazo Nominal"
 
-    # Cálculo numérico %
     if not pd.isna(teto_h) and teto_h > 0:
-        consumo_pct = np.nan if tempo_horas == 0.0 else round(tempo_horas / teto_h, 4) 
+        consumo_pct = np.nan if tempo_horas == 0.0 else round(tempo_horas / teto_h, 4)
     else:
         consumo_pct = np.nan
 
@@ -355,7 +359,7 @@ def avaliar_sla(modulo, categoria, subcategoria, tempo_horas):
 # 🔥 LÓGICA INCREMENTAL (ATUALIZAÇÃO HÍBRIDA)
 # ==============================
 
-path_final = "relatorio_classificado.xlsx"
+path_final = "../relatorio_dashboard/relatorio_classificado.xlsx"
 
 if os.path.exists(path_final):
     try:

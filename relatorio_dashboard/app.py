@@ -7,7 +7,6 @@ import datetime
 import os
 import base64
 import json
-import io
 
 # ==============================
 # 1. CONFIGURAÇÃO DA PÁGINA
@@ -443,123 +442,10 @@ BASELINE_HISTORICO = 0.48
 METAS_SLA_MENSAL = {4: 0.35, 5: 0.25, 6: 0.15}
 
 # ==============================
-# REGRAS SLA (JSON embutido)
+# REGRAS SLA
 # ==============================
-REGRAS_SLA = [
-  {
-    "modulo": "UniFiscal",
-    "categoria": ["inserir xml"],
-    "subcategoria": ["generico"],
-    "nome_exibicao": "Inserir XML / Genérico",
-    "piso_horas": 2.0,
-    "teto_horas": 24.0
-  },
-  {
-    "modulo": "UniFiscal",
-    "categoria": ["cadastro de empresa"],
-    "subcategoria": [],
-    "nome_exibicao": "Cadastro de Empresa",
-    "piso_horas": 3.0,
-    "teto_horas": 24.0
-  },
-  {
-    "modulo": "UniFiscal",
-    "categoria": ["parametrizacoes"],
-    "subcategoria": ["duvidas"],
-    "nome_exibicao": "Parametrizações > Dúvidas",
-    "piso_horas": 6.0,
-    "teto_horas": 24.0
-  },
-  {
-    "modulo": "UniFiscal",
-    "categoria": ["parametrizacoes"],
-    "subcategoria": ["atualizacao"],
-    "nome_exibicao": "Parametrizações > Atualização",
-    "piso_horas": 24.2,
-    "teto_horas": 120.0
-  },
-  {
-    "modulo": "UniFiscal",
-    "categoria": ["status de manifesto"],
-    "subcategoria": [],
-    "nome_exibicao": "Status de Manifesto",
-    "piso_horas": 153.6,
-    "teto_horas": 168.0
-  },
-  {
-    "modulo": "UniFiscal",
-    "categoria": ["validacoes trib. entrada", "validacoes trib entrada", "validacoes trib. saida", "validacoes trib saida"],
-    "subcategoria": [],
-    "nome_exibicao": "Validações Trib. Entrada/Saída",
-    "piso_horas": 3.0,
-    "teto_horas": 24.0
-  },
-  {
-    "modulo": "UniFiscal",
-    "categoria": ["coleta"],
-    "subcategoria": [],
-    "nome_exibicao": "Coleta",
-    "piso_horas": 148.8,
-    "teto_horas": 168.0
-  },
-  {
-    "modulo": "UniDP",
-    "categoria": ["ferias"],
-    "subcategoria": ["adicionar opcoes de ferias"],
-    "nome_exibicao": "Férias (Inclui adição de opções)",
-    "piso_horas": 2.0,
-    "teto_horas": 24.0
-  },
-  {
-    "modulo": "UniDP",
-    "categoria": ["parametrizacoes"],
-    "subcategoria": ["rubricas de holerite"],
-    "nome_exibicao": "Parametrizações > Rubricas de Holerite",
-    "piso_horas": 2.0,
-    "teto_horas": 24.0
-  },
-  {
-    "modulo": "UniDP",
-    "categoria": ["permissoes"],
-    "subcategoria": [],
-    "nome_exibicao": "Permissões",
-    "piso_horas": 1.0,
-    "teto_horas": 24.0
-  },
-  {
-    "modulo": "UniDP",
-    "categoria": ["upload"],
-    "subcategoria": ["atualizacao de colaboradores"],
-    "nome_exibicao": "Upload > Atualização de Colaboradores",
-    "piso_horas": 2.0,
-    "teto_horas": 24.0
-  },
-  {
-    "modulo": "UniDP",
-    "categoria": ["falhas em integracoes", "falhas em salvamento de formularios", "falhas em lancamento de ponto"],
-    "subcategoria": [],
-    "nome_exibicao": "Falhas: Integrações / Salvamento / Ponto",
-    "piso_horas": 36.0,
-    "teto_horas": 72.0
-  },
-  {
-    "modulo": "UniDP",
-    "categoria": ["falhas no calculo de banco de horas"],
-    "subcategoria": [],
-    "nome_exibicao": "Falhas no Cálculo de Banco de Horas",
-    "piso_horas": 48.0,
-    "teto_horas": 72.0
-  },
-  {
-    "modulo": "Ambos",
-    "categoria": ["melhorias"],
-    "subcategoria": [],
-    "nome_exibicao": "Melhorias",
-    "piso_horas": None,
-    "teto_horas": None,
-    "nota_especial": "Prazo Não Aplicável"
-  }
-]
+with open("../sla_rules.json", encoding="utf-8") as _f:
+    REGRAS_SLA = json.load(_f)
 
 # ==============================
 # CARREGAMENTO E LIMPEZA COM TTL NO CACHE
@@ -659,12 +545,8 @@ with st.sidebar:
     )
 
 # --- Processamento de Datas Comparativas ---
-try:
-    data_inicio_prev = data_inicio - pd.DateOffset(months=1)
-    data_fim_prev    = data_fim    - pd.DateOffset(months=1)
-except:
-    data_inicio_prev = data_inicio - datetime.timedelta(days=30)
-    data_fim_prev    = data_fim    - datetime.timedelta(days=30)
+data_inicio_prev = pd.Timestamp(data_inicio) - pd.DateOffset(months=1)
+data_fim_prev    = pd.Timestamp(data_fim)    - pd.DateOffset(months=1)
 
 texto_comparativo_periodo = f"vs ({data_inicio_prev.strftime('%d/%m')} a {data_fim_prev.strftime('%d/%m')})"
 
@@ -831,9 +713,12 @@ with tab_comp:
             )]
 
             if not df_sla_validos.empty:
-                df_trend = df_sla_validos.groupby(["Mês/Ano", "Mês_Nome", "Mes_Int"]).apply(
-                    lambda x: (x["Status SLA"] == "Acima do Teto (Nota: Tempo Corrido Bruto)").sum() / len(x) * 100
-                ).reset_index(name="% Estouro")
+                df_trend = (
+                    df_sla_validos
+                    .groupby(["Mês/Ano", "Mês_Nome", "Mes_Int"])["Status SLA"]
+                    .agg(lambda s: (s == "Acima do Teto (Nota: Tempo Corrido Bruto)").mean() * 100)
+                    .reset_index(name="% Estouro")
+                )
 
                 df_trend["Tolerancia_Oficial"] = df_trend["Mes_Int"].map(METAS_SLA_MENSAL) * 100
 
@@ -975,9 +860,9 @@ with tab_cons:
                 "% Estourado":  "{:.1f}%",
                 "% Causa Raiz": "{:.1f}%"
             })
-            .applymap(style_no_prazo,   subset=["% No Prazo"])
-            .applymap(style_estourado,  subset=["% Estourado"])
-            .applymap(style_causa_raiz, subset=["% Causa Raiz"])
+            .map(style_no_prazo,   subset=["% No Prazo"])
+            .map(style_estourado,  subset=["% Estourado"])
+            .map(style_causa_raiz, subset=["% Causa Raiz"])
         )
 
         st.dataframe(styled_table_grp, use_container_width=True, hide_index=True)
@@ -1018,7 +903,7 @@ with tab_det:
             "Tempo Gasto (Horas)":"{:.1f}h",
             "% Consumo SLA":      "{:.1f}%"
         }, na_rep="-")
-        .applymap(style_status, subset=["Status SLA"])
+        .map(style_status, subset=["Status SLA"])
     )
 
     st.dataframe(styled_df, use_container_width=True, hide_index=True, height=500)
@@ -1118,56 +1003,66 @@ with tab_dados:
     )
 
     # Filtro rápido por módulo dentro da aba
-    modulos_regras = sorted(set(r["modulo"] for r in REGRAS_SLA))
+    def _normaliza_modulo_regra(valor):
+        return str(valor).strip().lower()
+
+    modulos_regras = sorted(
+        {str(r.get("modulo", "")).strip() for r in REGRAS_SLA if str(r.get("modulo", "")).strip()}
+    )
     filtro_modulo_regra = st.radio(
         "Filtrar regras por módulo:",
         options=["Todos"] + modulos_regras,
         horizontal=True
     )
 
-    regras_filtradas = REGRAS_SLA if filtro_modulo_regra == "Todos" else [
-        r for r in REGRAS_SLA if r["modulo"] == filtro_modulo_regra
-    ]
+    if filtro_modulo_regra == "Todos":
+        regras_filtradas = list(REGRAS_SLA)
+    else:
+        filtro_modulo_norm = _normaliza_modulo_regra(filtro_modulo_regra)
+        regras_filtradas = [
+            r for r in REGRAS_SLA
+            if _normaliza_modulo_regra(r.get("modulo")) in {filtro_modulo_norm, "ambos"}
+        ]
 
     # Renderiza os cards
-    cols_cards = st.columns(2)
-    for idx, regra in enumerate(regras_filtradas):
-        col = cols_cards[idx % 2]
-        with col:
-            modulo_lower = regra["modulo"].lower().replace(" ", "")
-            css_class    = "ambos" if modulo_lower == "ambos" else ("unidp" if "unidp" in modulo_lower else "unifiscal")
+    for inicio in range(0, len(regras_filtradas), 2):
+        cols_cards = st.columns(2)
+        for col, regra in zip(cols_cards, regras_filtradas[inicio:inicio + 2]):
+            with col:
+                modulo_lower = _normaliza_modulo_regra(regra.get("modulo")).replace(" ", "")
+                css_class = "ambos" if modulo_lower == "ambos" else ("unidp" if "unidp" in modulo_lower else "unifiscal")
 
-            nota_especial = regra.get("nota_especial", None)
-            piso = regra.get("piso_horas")
-            teto = regra.get("teto_horas")
+                nota_especial = regra.get("nota_especial", None)
+                piso = regra.get("piso_horas")
+                teto = regra.get("teto_horas")
 
-            if nota_especial:
-                badge_piso = f'<span class="sla-badge na">⛔ {nota_especial}</span>'
-            else:
-                badge_piso = f'<span class="sla-badge piso">⬇️ Piso: {piso:.1f}h</span>' if piso is not None else '<span class="sla-badge na">Piso: —</span>'
-                badge_teto = f'<span class="sla-badge teto">⬆️ Teto: {teto:.1f}h</span>' if teto is not None else '<span class="sla-badge na">Teto: —</span>'
+                if nota_especial:
+                    badge_piso = f'<span class="sla-badge na">NA {nota_especial}</span>'
+                else:
+                    badge_piso = f'<span class="sla-badge piso">Piso: {piso:.1f}h</span>' if piso is not None else '<span class="sla-badge na">Piso: -</span>'
+                    badge_teto = f'<span class="sla-badge teto">Teto: {teto:.1f}h</span>' if teto is not None else '<span class="sla-badge na">Teto: -</span>'
 
-            cats = " · ".join(regra["categoria"]) if regra["categoria"] else "—"
-            subs = " · ".join(regra["subcategoria"]) if regra["subcategoria"] else "<span style='color:#9ca3af;font-style:italic;'>qualquer subcategoria</span>"
+                cats = " | ".join(regra.get("categoria", [])) if regra.get("categoria") else "-"
+                subs = " | ".join(regra.get("subcategoria", [])) if regra.get("subcategoria") else "<span style='color:#9ca3af;font-style:italic;'>qualquer subcategoria</span>"
 
-            nota_html = f'<div class="sla-nota">⚠️ {nota_especial}</div>' if nota_especial else ""
-            badges_html = badge_piso if nota_especial else f"{badge_piso} {badge_teto}"
+                nota_html = f'<div class="sla-nota">Observacao: {nota_especial}</div>' if nota_especial else ""
+                badges_html = badge_piso if nota_especial else f"{badge_piso} {badge_teto}"
 
-            st.markdown(
-                f"""
-                <div class="sla-card">
-                    <div class="sla-card-modulo {css_class}">{regra['modulo']}</div>
-                    <div class="sla-card-title">{regra['nome_exibicao']}</div>
-                    <div style="font-size:0.75rem; color:#6b7280; margin-bottom:0.55rem;">
-                        <b style="color:#374151;">Categoria:</b> {cats}<br>
-                        <b style="color:#374151;">Subcategoria:</b> {subs}
+                st.markdown(
+                    f"""
+                    <div class="sla-card">
+                        <div class="sla-card-modulo {css_class}">{regra.get('modulo', 'N/A')}</div>
+                        <div class="sla-card-title">{regra.get('nome_exibicao', 'Regra sem nome')}</div>
+                        <div style="font-size:0.75rem; color:#6b7280; margin-bottom:0.55rem;">
+                            <b style="color:#374151;">Categoria:</b> {cats}<br>
+                            <b style="color:#374151;">Subcategoria:</b> {subs}
+                        </div>
+                        <div>{badges_html}</div>
+                        {nota_html}
                     </div>
-                    <div>{badges_html}</div>
-                    {nota_html}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+                    """,
+                    unsafe_allow_html=True
+                )
 
     st.markdown("<br>", unsafe_allow_html=True)
 

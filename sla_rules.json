@@ -1,0 +1,195 @@
+[
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["inserir xml"],
+    "subcategoria": [],
+    "nome_exibicao": "Inserir XML / Genérico",
+    "piso_horas": 2.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["cadastro de empresa"],
+    "subcategoria": [],
+    "nome_exibicao": "Cadastro de Empresa",
+    "piso_horas": 3.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["parametrizacoes"],
+    "subcategoria": ["duvidas"],
+    "nome_exibicao": "Parametrizações > Dúvidas",
+    "piso_horas": 6.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["parametrizacoes"],
+    "subcategoria": ["atualizacao"],
+    "nome_exibicao": "Parametrizações > Atualização",
+    "piso_horas": 24.2,
+    "teto_horas": 120.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["status de manifesto"],
+    "subcategoria": [],
+    "nome_exibicao": "Status de Manifesto",
+    "piso_horas": 153.6,
+    "teto_horas": 168.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["validacoes trib. entrada", "validacoes trib entrada", "validacoes trib. saida", "validacoes trib saida"],
+    "subcategoria": [],
+    "nome_exibicao": "Validações Trib. Entrada/Saída",
+    "piso_horas": 3.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["coleta"],
+    "subcategoria": [],
+    "nome_exibicao": "Coleta",
+    "piso_horas": 148.8,
+    "teto_horas": 168.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["upload sped bot automacao"],
+    "subcategoria": [],
+    "nome_exibicao": "Upload SPED (Bot Automação)",
+    "piso_horas": 3.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["vinculo xml sped"],
+    "subcategoria": [],
+    "nome_exibicao": "Vínculo XML SPED",
+    "piso_horas": 148.8,
+    "teto_horas": 168.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["emissao de relatorios"],
+    "subcategoria": [],
+    "nome_exibicao": "Emissão de Relatórios",
+    "piso_horas": 36.0,
+    "teto_horas": 72.0
+  },
+  {
+    "modulo": "UniFiscal",
+    "categoria": ["upload sped lentidao"],
+    "subcategoria": [],
+    "nome_exibicao": "Upload SPED (Lentidão)",
+    "piso_horas": 36.0,
+    "teto_horas": 72.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["ferias"],
+    "subcategoria": [],
+    "nome_exibicao": "Férias",
+    "piso_horas": 2.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["parametrizacoes"],
+    "subcategoria": ["rubricas de holerite"],
+    "nome_exibicao": "Parametrizações > Rubricas de Holerite",
+    "piso_horas": 2.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["permissoes"],
+    "subcategoria": [],
+    "nome_exibicao": "Permissões",
+    "piso_horas": 1.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["upload"],
+    "subcategoria": ["atualizacao de colaboradores"],
+    "nome_exibicao": "Upload > Atualização de Colaboradores",
+    "piso_horas": 2.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["falhas em integracoes", "falhas em salvamento de formularios", "falhas em lancamento de ponto"],
+    "subcategoria": [],
+    "nome_exibicao": "Falhas: Integrações / Salvamento / Ponto",
+    "piso_horas": 36.0,
+    "teto_horas": 72.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["falhas no calculo de banco de horas"],
+    "subcategoria": [],
+    "nome_exibicao": "Falhas no Cálculo de Banco de Horas",
+    "piso_horas": 48.0,
+    "teto_horas": 72.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["consultas holerites"],
+    "subcategoria": [],
+    "nome_exibicao": "Consultas de Holerites",
+    "piso_horas": 1.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["importacao upload de holerite"],
+    "subcategoria": [],
+    "nome_exibicao": "Importação / Upload de Holerite",
+    "piso_horas": 1.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["permissionamento uniconfig"],
+    "subcategoria": [],
+    "nome_exibicao": "Permissionamento UniCONFIG",
+    "piso_horas": 1.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["administracao pessoal rescisao"],
+    "subcategoria": [],
+    "nome_exibicao": "Administração Pessoal - Rescisão",
+    "piso_horas": 1.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["administracao pessoal admissao"],
+    "subcategoria": [],
+    "nome_exibicao": "Administração Pessoal - Admissão",
+    "piso_horas": 1.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "UniDP",
+    "categoria": ["divergencias relatorio"],
+    "subcategoria": [],
+    "nome_exibicao": "Divergências em Relatório",
+    "piso_horas": 36.0,
+    "teto_horas": 72.0
+  },
+  {
+    "modulo": "Ambos",
+    "categoria": ["melhorias"],
+    "subcategoria": [],
+    "nome_exibicao": "Melhorias",
+    "piso_horas": null,
+    "teto_horas": null,
+    "nota_especial": "Prazo Não Aplicável"
+  }
+]
