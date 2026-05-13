@@ -76,27 +76,5 @@ def carregar_textos() -> pd.DataFrame:
 
 
 def preparar_textos(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df.columns = df.columns.str.strip().str.lower()
-    df["id_ticket"] = df["id_ticket"].astype(str).str.strip()
-
-    if "texto" not in df.columns:
-        return df[["id_ticket"]]
-
-    df["texto"] = df["texto"].replace(r"\n", " ", regex=True)
-
-    coluna_data = "criado_em"
-    if coluna_data in df.columns:
-        df[coluna_data] = pd.to_datetime(df[coluna_data], format="%m/%d/%y %H:%M", errors="coerce")
-        df["texto"] = df["texto"].astype(str).str.strip()
-
-        _excluir = ["alteração de status", "alteracao de status", "ticket atribuído", "ticket atribuido"]
-
-        def _valido(t: str) -> bool:
-            tl = t.lower()
-            return t not in ("", "nan") and not any(p in tl for p in _excluir)
-
-        df = df[df["texto"].apply(_valido)]
-        df = df.sort_values(coluna_data).drop_duplicates(subset=["id_ticket"], keep="first")
-
-    return df[["id_ticket", "texto"]]
+    from text_cleaner import preparar_para_classificacao
+    return preparar_para_classificacao(df)

@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from auditor import auditar
 from classifier import classificar
 from data_utils import carregar_tickets, carregar_textos, preparar_textos
 from sla_engine import avaliar_sla, converter_tempo_para_horas
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 _BASE = Path(__file__).parent
 OUTPUT_PATH = _BASE.parent / "relatorio_dashboard" / "relatorio_classificado.xlsx"
+AUDIT_PATH  = _BASE.parent / "relatorio_dashboard" / "relatorio_auditoria.xlsx"
 
 _COLUNAS_FINAIS = [
     "ID", "Data Abertura", "Status", "Módulo", "Categoria", "Subcategoria",
@@ -139,6 +141,8 @@ def _aplicar_sla(df: pd.DataFrame) -> pd.DataFrame:
 def main() -> None:
     logger.info("Iniciando pipeline de classificação...")
 
+    df_textos_raw = carregar_textos()
+
     df_base = _montar_base()
     df = _aplicar_incremental(df_base)
     df = _aplicar_sla(df)
@@ -149,8 +153,11 @@ def main() -> None:
     colunas_presentes = [c for c in _COLUNAS_FINAIS if c in df.columns]
     df_final = df[colunas_presentes].drop_duplicates(subset=["ID"], keep="last")
     df_final.to_excel(OUTPUT_PATH, index=False)
-
     logger.info("Pipeline concluído. %d tickets exportados para %s", len(df_final), OUTPUT_PATH)
+
+    df_audit = auditar(df_final, df_textos_raw)
+    df_audit.to_excel(AUDIT_PATH, index=False)
+    logger.info("Auditoria concluída. %d tickets auditados para %s", len(df_audit), AUDIT_PATH)
 
 
 if __name__ == "__main__":
