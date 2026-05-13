@@ -22,6 +22,7 @@ OUTPUT_PATH = _BASE.parent / "relatorio_dashboard" / "relatorio_classificado.xls
 
 _COLUNAS_FINAIS = [
     "ID", "Data Abertura", "Status", "Módulo", "Categoria", "Subcategoria",
+    "Responsável",
     "SLA Piso", "SLA Teto", "% Consumo SLA", "Status SLA", "Tempo Gasto",
     "Causa Raíz", "Caminho", "Tipo", "Título", "Prioridade", "Tempo Gasto (Horas)",
 ]
@@ -49,8 +50,9 @@ def _montar_base() -> pd.DataFrame:
         "modulo":       "Módulo",
         "caminho":      "Caminho",
         "tipo":         "Tipo",
-        "prioridade":   "Prioridade",
-        "tempo_gasto":  "Tempo Gasto",
+        "prioridade":    "Prioridade",
+        "tempo_gasto":   "Tempo Gasto",
+        "responsável":   "Responsável",
     }, inplace=True)
     return base
 

@@ -119,7 +119,7 @@ def build_consolidated_table(df_atual: pd.DataFrame, visao: str) -> Styler:
 
 def build_audit_table(df_atual: pd.DataFrame, id_busca: str, filtro_status: str) -> Styler:
     cols = [
-        "ID", "Data Abertura", "Módulo", "Categoria",
+        "ID", "Data Abertura", "Módulo", "Categoria", "Responsável",
         "SLA Piso", "SLA Teto", "Tempo Gasto (Horas)", "% Consumo SLA",
         "Status_SLA_Label", "Causa Raíz",
     ]
