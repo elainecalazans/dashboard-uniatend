@@ -52,6 +52,7 @@ def _montar_base() -> pd.DataFrame:
         "tipo":         "Tipo",
         "prioridade":    "Prioridade",
         "tempo_gasto":   "Tempo Gasto",
+        "responsavel":   "Responsável",
         "responsável":   "Responsável",
     }, inplace=True)
     return base
@@ -141,6 +142,9 @@ def main() -> None:
     df_base = _montar_base()
     df = _aplicar_incremental(df_base)
     df = _aplicar_sla(df)
+
+    if "Categoria" in df.columns:
+        df = df[df["Categoria"].str.lower().str.strip() != "teste de funcionalidade"]
 
     colunas_presentes = [c for c in _COLUNAS_FINAIS if c in df.columns]
     df_final = df[colunas_presentes].drop_duplicates(subset=["ID"], keep="last")
