@@ -61,12 +61,32 @@ def _calcular_frt(historico: list[dict]) -> float | None:
     return (respostas[0]["timestamp"] - t_abertura).total_seconds() / 3600
 
 
-def _calcular_max_gap(historico: list[dict]) -> float | None:
-    ts = sorted(h["timestamp"] for h in historico if pd.notna(h["timestamp"]))
-    if len(ts) < 2:
+def _calcular_max_gap_zumbi(historico: list[dict], status: str) -> float | None:
+    msgs = [h for h in historico if pd.notna(h["timestamp"])]
+    if not msgs:
         return None
-    gaps = [(ts[i + 1] - ts[i]).total_seconds() / 86400 for i in range(len(ts) - 1)]
-    return max(gaps)
+
+    gaps = []
+    ultimo_cliente_ts = None
+    aguardando = False
+
+    for h in msgs:
+        if h["papel"] == "cliente":
+            if not aguardando:
+                ultimo_cliente_ts = h["timestamp"]
+                aguardando = True
+        else:
+            if aguardando and ultimo_cliente_ts is not None:
+                gaps.append((h["timestamp"] - ultimo_cliente_ts).total_seconds() / 86400)
+            aguardando = False
+            ultimo_cliente_ts = None
+
+    if aguardando and ultimo_cliente_ts is not None:
+        if "conclu" not in str(status).strip().lower():
+            hoje = pd.Timestamp.now().normalize()
+            gaps.append((hoje - ultimo_cliente_ts).total_seconds() / 86400)
+
+    return max(gaps) if gaps else None
 
 
 def _resolucao_generica(msgs_tecnico: list[dict]) -> bool:
@@ -98,7 +118,7 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
         msgs_tecnico = [h for h in historico if h["papel"] == "tecnico"]
 
         frt = _calcular_frt(historico)
-        max_gap = _calcular_max_gap(historico)
+        max_gap = _calcular_max_gap_zumbi(historico, ticket.get("Status", ""))
         causa_raiz = str(ticket.get("Causa Raíz", "")).strip()
 
         registros.append({
