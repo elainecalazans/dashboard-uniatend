@@ -35,6 +35,20 @@ _FECHAMENTO_RE = re.compile(
 )
 
 
+def _label_sem_frt(historico: list[dict]) -> str:
+    msgs_cliente = [h for h in historico if h["papel"] == "cliente"]
+    msgs_tecnico = [h for h in historico if h["papel"] == "tecnico"]
+    if not historico:
+        return "Sem dados"
+    if msgs_tecnico and not msgs_cliente:
+        return "Abertura Administrativa"
+    if not msgs_tecnico and len(historico) > 1:
+        usuarios = {h["usuario"] for h in historico}
+        if len(usuarios) == 1:
+            return "Abertura Administrativa"
+    return "Sem dados"
+
+
 def _calcular_frt(historico: list[dict]) -> float | None:
     msgs_cliente = [h for h in historico if h["papel"] == "cliente" and pd.notna(h["timestamp"])]
     msgs_tecnico = [h for h in historico if h["papel"] == "tecnico" and pd.notna(h["timestamp"])]
@@ -92,7 +106,7 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
             "Categoria": ticket.get("Categoria", ""),
             "Status": ticket.get("Status", ""),
             "FRT (horas)": round(frt, 1) if frt is not None else None,
-            "FRT OK": "Sim" if (frt is not None and frt <= 2.0) else ("Não" if frt is not None else "Sem dados"),
+            "FRT OK": "Sim" if (frt is not None and frt <= 2.0) else ("Não" if frt is not None else _label_sem_frt(historico)),
             "Gap Máx (dias)": round(max_gap, 1) if max_gap is not None else None,
             "Risco Zumbi": "Sim" if (max_gap is not None and max_gap > 5) else "Não",
             "Resolução Genérica": "Sim" if _resolucao_generica(msgs_tecnico) else "Não",

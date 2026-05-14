@@ -7,6 +7,7 @@ import pandas as pd
 
 TECNICOS: set[str] = {
     "GUILHERME LOPES PIRES DA SILVA",
+    "GUILHERME HENRIQUE PORTO DOS SANTOS",
     "JEISY GONCALVES DE SOUSA",
     "RAFAEL RODRIGUES VIANNA",
     "ANDRESSA TELES RODRIGUES",
@@ -28,10 +29,20 @@ _ANEXO_RE = re.compile(
 )
 
 
+def _fix_mojibake(texto: str) -> str:
+    try:
+        return texto.encode("latin-1").decode("utf-8")
+    except (UnicodeDecodeError, UnicodeEncodeError):
+        return texto
+
+
 def _limpar(texto: str) -> str:
-    texto = html.unescape(str(texto)).strip()
-    texto = _ANEXO_RE.sub("", texto).strip()
-    return texto
+    s = html.unescape(str(texto)).strip()
+    if not s or s.lower() == "nan":
+        return ""
+    s = _fix_mojibake(s)
+    s = _ANEXO_RE.sub("", s).strip()
+    return s
 
 
 def _eh_ruido(texto: str) -> bool:
