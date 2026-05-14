@@ -86,6 +86,8 @@ def _protocolo_encerramento(historico: list[dict]) -> bool:
 
 
 def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFrame:
+    df_tickets = df_tickets[df_tickets["Status"].str.strip().str.lower() != "cancelado"].copy()
+
     df_hist = consolidar_historico(df_textos_raw)
     hist_idx = df_hist.set_index("id_ticket")["historico"].to_dict()
 
