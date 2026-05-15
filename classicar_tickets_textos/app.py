@@ -150,6 +150,8 @@ def main() -> None:
     df = _aplicar_incremental(df_base)
     df = _aplicar_sla(df)
 
+    if "Status" in df.columns:
+        df = df[df["Status"].str.strip().str.lower() != "cancelado"]
     if "Categoria" in df.columns:
         df = df[df["Categoria"].str.lower().str.strip() != "teste de funcionalidade"]
 

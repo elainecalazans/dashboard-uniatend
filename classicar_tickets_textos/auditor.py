@@ -8,15 +8,33 @@ import pandas as pd
 from text_cleaner import consolidar_historico
 
 _GENERICA_RE = re.compile(
-    r"^("
-    r"tratativa finalizada[.!]?|"
-    r"erro solucionado[.!]?|"
-    r"realizado conforme solicitado[.!]?|"
-    r"ok[.!]?|"
-    r"resolvido[.!]?|"
-    r"conclu[íi]do[.!]?|"
-    r"pronto[.!]?"
-    r")$",
+    r"\b("
+    r"tratativa\s+finalizada|"
+    r"(o\s+)?erro\s+(foi\s+)?(solucionado|corrigido|resolvido)|"
+    r"(o\s+)?problema\s+(foi\s+)?(solucionado|corrigido|resolvido)|"
+    r"(foi\s+|est[aá]\s+)?(solucionado|resolvido|finalizado|conclu[íi]do|corrigido)|"
+    r"(realizado|atendido|executado|feito)\s+conforme\s+solicitado|"
+    r"ok[.!]?|pronto[.!]?"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# Palavras técnicas específicas que indicam conteúdo real — evitam falso positivo
+_SALVO_RE = re.compile(
+    r"\b("
+    r"altera[çc][aã]o|altera[çc][oõ]es|alterado|"
+    r"parametriza[çc][aã]o|parametrizado|"
+    r"configura[çc][aã]o|configura[çc][oõ]es|configurado|"
+    r"ajustes?|"
+    r"atualiza[çc][aã]o|atualizado|"
+    r"implementa[çc][aã]o|implementado|"
+    r"corre[çc][aã]o|"
+    r"valida[çc][aã]o|validado|"
+    r"verifica[çc][aã]o|verificado|"
+    r"arquivos?|upload|"
+    r"integra[çc][aã]o|"
+    r"CFOP|SPED|ERP|NCM|Unifica|CNPJ|CEI|eSocial|REINF|DCTF"
+    r")\b",
     re.IGNORECASE,
 )
 
@@ -96,7 +114,13 @@ def _resolucao_generica(msgs_tecnico: list[dict]) -> bool:
     ultima = msgs_tecnico[-1]["texto"].strip()
     sem_saudacao = _SAUDACAO_RE.sub("", ultima).strip()
     sem_fechamento = _FECHAMENTO_RE.sub("", sem_saudacao).strip()
-    return not sem_fechamento or bool(_GENERICA_RE.match(sem_fechamento))
+    if not sem_fechamento:
+        return True
+    if _SALVO_RE.search(sem_fechamento):
+        return False
+    if len(sem_fechamento) > 120:
+        return False
+    return bool(_GENERICA_RE.search(sem_fechamento))
 
 
 def _regra_24_dias(ultima_atualizacao, categoria: str, status: str) -> str:
@@ -207,12 +231,18 @@ def _dias_desde(ts) -> int | None:
         return None
 
 
-def _flags_do_ticket(row: pd.Series, tk: dict) -> list[dict]:
+def _flags_do_ticket(row: pd.Series, tk: dict, historico: list[dict] | None = None) -> list[dict]:
     flags = []
     if row.get("Risco Zumbi") == "Sim":
         gap = row.get("Gap Máx (dias)")
-        txt = f"Cliente aguardando há {int(gap)} dias" if pd.notna(gap) else "Gap > 5 dias"
-        flags.append({"cls": "fc", "txt": txt})
+        msgs_com_ts = [h for h in (historico or []) if pd.notna(h.get("timestamp"))]
+        ja_respondido = bool(msgs_com_ts) and msgs_com_ts[-1]["papel"] == "tecnico"
+        if ja_respondido:
+            txt = f"Cliente aguardou {int(gap)} dias — técnico já respondeu" if pd.notna(gap) else "Gap > 5 dias — técnico já respondeu"
+            flags.append({"cls": "fa", "txt": txt})
+        else:
+            txt = f"Cliente aguardando há {int(gap)} dias" if pd.notna(gap) else "Gap > 5 dias"
+            flags.append({"cls": "fc", "txt": txt})
     if row.get("Regra 24 Dias") == "Sim":
         dias = _dias_desde(tk.get("Última Atualização"))
         txt = (
@@ -226,8 +256,7 @@ def _flags_do_ticket(row: pd.Series, tk: dict) -> list[dict]:
         flags.append({"cls": "fa", "txt": f"1ª resposta em {frt_h:.1f}h (limite: 2h)"})
     if row.get("Resolução Genérica") == "Sim":
         flags.append({"cls": "fa", "txt": "Encerramento genérico"})
-    if row.get("Causa Raíz Preenchida") == "Não":
-        flags.append({"cls": "fl", "txt": "Causa raíz não preenchida"})
+    # Causa Raíz desativada temporariamente — regra de aplicação em definição
     return flags
 
 
@@ -237,7 +266,7 @@ def _tem_flag(row: pd.Series) -> bool:
         or row.get("Regra 24 Dias") == "Sim"
         or (row.get("FRT OK") == "Não" and pd.notna(row.get("FRT (horas)")))
         or row.get("Resolução Genérica") == "Sim"
-        or row.get("Causa Raíz Preenchida") == "Não"
+        # Causa Raíz desativada temporariamente — regra de aplicação em definição
     )
 
 
@@ -299,13 +328,18 @@ def gerar_html_report(
                 else _esc(cat)
             )
             status = _esc(str(row.get("Status", "")).strip())
-            dias_ab = _dias_desde(tk.get("Data Abertura"))
-            ab_str = f"Aberto h&aacute; {dias_ab} dias" if dias_ab is not None else ""
+            data_ab = tk.get("Data Abertura")
+            dias_ab = _dias_desde(data_ab)
+            try:
+                data_fmt = pd.Timestamp(data_ab).strftime("%d/%m/%Y")
+                ab_str = f"Aberto em {data_fmt} ({dias_ab} dias)" if dias_ab is not None else f"Aberto em {data_fmt}"
+            except Exception:
+                ab_str = f"Aberto h&aacute; {dias_ab} dias" if dias_ab is not None else ""
             meta = "&nbsp;&nbsp;|&nbsp;&nbsp;".join(
                 p for p in [cat_str, status, ab_str] if p
             )
 
-            flags = _flags_do_ticket(row, tk)
+            flags = _flags_do_ticket(row, tk, hist_idx.get(tid, []))
             flags_html = "".join(
                 f'<span class="f {f["cls"]}">{_esc(f["txt"])}</span>' for f in flags
             )
