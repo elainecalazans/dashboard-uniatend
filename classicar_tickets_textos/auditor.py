@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import base64
 import re
 from html import escape as _esc
+from pathlib import Path
 
 import pandas as pd
 
@@ -187,28 +189,32 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
 
 # ── Geração do report HTML ────────────────────────────────────────────────────
 
+_LOGO_PATH = Path(__file__).parent.parent / "relatorio_dashboard" / "1775153144791_image.png"
+
 _CSS = (
     "body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#333;"
-    "background:#eef1f6;margin:0;padding:20px}"
+    "background:#f0f7f3;margin:0;padding:20px}"
     ".w{max-width:700px;margin:0 auto;background:#fff;border-radius:8px;"
-    "box-shadow:0 2px 10px rgba(0,0,0,.12);overflow:hidden}"
-    ".hd{background:#1e2d5a;color:#fff;padding:18px 24px}"
-    ".hd h1{margin:0;font-size:17px;font-weight:700;letter-spacing:.4px}"
-    ".hd p{margin:5px 0 0;font-size:12px;color:#94b0e8}"
+    "box-shadow:0 2px 10px rgba(0,0,0,.1);overflow:hidden}"
+    ".lb{background:#fff;padding:14px 24px;border-bottom:3px solid #68bd46}"
+    ".lb img{height:42px;display:block}"
+    ".hd{background:#02683d;padding:16px 24px}"
+    ".hd h1{margin:0;font-size:17px;font-weight:700;color:#fff;letter-spacing:.3px}"
+    ".hd p{margin:5px 0 0;font-size:12px;color:#a8d96a}"
     ".bd{padding:12px 24px 28px}"
     ".rt{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;"
-    "color:#1e2d5a;margin:22px 0 6px;padding-bottom:5px;border-bottom:2px solid #e6eaf0}"
+    "color:#02683d;margin:22px 0 6px;padding-bottom:5px;border-bottom:2px solid #68bd46}"
     ".rc{font-weight:normal;text-transform:none;letter-spacing:0;color:#999;font-size:12px}"
-    ".tk{border:1px solid #e6eaf0;border-radius:6px;padding:11px 14px;margin:7px 0;"
-    "background:#fafbfd}"
-    ".ti{font-weight:700;color:#1e2d5a;font-size:13px}"
-    ".tm{color:#999;font-size:11px;margin:3px 0 8px}"
+    ".tk{border:1px solid #d4edda;border-radius:6px;padding:11px 14px;margin:7px 0;"
+    "background:#fafffe}"
+    ".ti{font-weight:700;color:#014d2d;font-size:13px}"
+    ".tm{color:#888;font-size:11px;margin:3px 0 8px}"
     ".f{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;"
     "font-weight:600;margin:2px 3px 2px 0}"
     ".fc{background:#fde8e8;color:#c0392b;border:1px solid #e74c3c}"
     ".fa{background:#fff4e5;color:#c07800;border:1px solid #e07b00}"
     ".fl{background:#fffde7;color:#7a6200;border:1px solid #d4ac0d}"
-    ".um{background:#f4f6f8;border-left:3px solid #bdc7d3;padding:6px 10px;"
+    ".um{background:#f0faf4;border-left:3px solid #4aae6f;padding:6px 10px;"
     "font-size:11px;color:#555;margin-top:8px;border-radius:0 4px 4px 0;"
     "font-style:italic;word-break:break-word}"
     ".ft{padding:10px 24px;font-size:11px;color:#bbb;border-top:1px solid #f0f0f0;"
@@ -278,6 +284,11 @@ def gerar_html_report(
     hoje = pd.Timestamp.now().normalize()
     data_str = hoje.strftime("%d/%m/%Y")
 
+    logo_html = ""
+    if _LOGO_PATH.exists():
+        b64 = base64.b64encode(_LOGO_PATH.read_bytes()).decode()
+        logo_html = f"<div class='lb'><img src='data:image/png;base64,{b64}' alt='Agrocontar'></div>"
+
     df_hist = consolidar_historico(df_textos_raw)
     hist_idx = df_hist.set_index("id_ticket")["historico"].to_dict()
 
@@ -292,6 +303,7 @@ def gerar_html_report(
             "<!DOCTYPE html><html><head><meta charset='utf-8'>"
             f"<style>{_CSS}</style></head><body>"
             "<div class='w'>"
+            f"{logo_html}"
             "<div class='hd'><h1>Auditoria UniATEND</h1>"
             f"<p>{data_str} &nbsp;&middot;&nbsp; {subtit}</p></div>"
             f"<div class='bd'>{corpo}</div>"
