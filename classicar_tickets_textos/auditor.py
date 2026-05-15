@@ -239,8 +239,8 @@ _CSS = (
     ".ms-v{font-size:20px;font-weight:800;margin:4px 0 2px}"
     ".ms-m{font-size:10px;font-weight:600;color:#555;margin-bottom:2px}"
     ".ms-s{font-size:10px;color:#999}"
-    ".ok{color:#005f5f}"
-    ".nk{color:#c0392b}"
+    ".ok{color:#1a8a3a;font-weight:800}"
+    ".nk{color:#c0392b;font-weight:800}"
 )
 
 
