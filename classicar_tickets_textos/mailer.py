@@ -1,0 +1,42 @@
+from __future__ import annotations
+
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from pathlib import Path
+
+
+def _carregar_env() -> None:
+    env = Path(__file__).parent.parent / ".env"
+    if not env.exists():
+        return
+    for linha in env.read_text(encoding="utf-8").splitlines():
+        linha = linha.strip()
+        if not linha or linha.startswith("#") or "=" not in linha:
+            continue
+        chave, _, valor = linha.partition("=")
+        os.environ.setdefault(chave.strip(), valor.strip())
+
+
+def enviar_report(html_body: str, data_str: str) -> None:
+    _carregar_env()
+
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    report_to = os.environ.get("REPORT_TO", "andressa.rodrigues@bhub.ai")
+
+    if not smtp_user or not smtp_pass:
+        raise ValueError("SMTP_USER e SMTP_PASS precisam estar configurados no .env")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Auditoria UniATEND — {data_str}"
+    msg["From"] = smtp_user
+    msg["To"] = report_to
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.login(smtp_user, smtp_pass)
+        smtp.sendmail(smtp_user, [report_to], msg.as_string())

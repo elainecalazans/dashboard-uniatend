@@ -10,5 +10,8 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Credenciais — não versionar
+.env
+
 # Claude Code
 .claude/

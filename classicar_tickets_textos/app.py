@@ -10,9 +10,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from auditor import auditar
+from auditor import auditar, gerar_html_report
 from classifier import classificar
 from data_utils import carregar_tickets, carregar_textos, preparar_textos
+from mailer import enviar_report
 from sla_engine import avaliar_sla, converter_tempo_para_horas
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -23,7 +24,7 @@ OUTPUT_PATH = _BASE.parent / "relatorio_dashboard" / "relatorio_classificado.xls
 AUDIT_PATH  = _BASE.parent / "relatorio_dashboard" / "relatorio_auditoria.xlsx"
 
 _COLUNAS_FINAIS = [
-    "ID", "Data Abertura", "Status", "Módulo", "Categoria", "Subcategoria",
+    "ID", "Data Abertura", "Última Atualização", "Status", "Módulo", "Categoria", "Subcategoria",
     "Responsável",
     "SLA Piso", "SLA Teto", "% Consumo SLA", "Status SLA", "Tempo Gasto",
     "Causa Raíz", "Caminho", "Tipo", "Título", "Prioridade", "Tempo Gasto (Horas)",
@@ -54,8 +55,10 @@ def _montar_base() -> pd.DataFrame:
         "tipo":         "Tipo",
         "prioridade":    "Prioridade",
         "tempo_gasto":   "Tempo Gasto",
-        "responsavel":   "Responsável",
-        "responsável":   "Responsável",
+        "responsavel":       "Responsável",
+        "responsável":       "Responsável",
+        "última_atualização": "Última Atualização",
+        "ultima_atualizacao": "Última Atualização",
     }, inplace=True)
     return base
 
@@ -158,6 +161,14 @@ def main() -> None:
     df_audit = auditar(df_final, df_textos_raw)
     df_audit.to_excel(AUDIT_PATH, index=False)
     logger.info("Auditoria concluída. %d tickets auditados para %s", len(df_audit), AUDIT_PATH)
+
+    try:
+        data_str = pd.Timestamp.now().strftime("%d/%m/%Y")
+        html_body = gerar_html_report(df_audit, df_final, df_textos_raw)
+        enviar_report(html_body, data_str)
+        logger.info("Report de auditoria enviado por e-mail.")
+    except Exception as exc:
+        logger.warning("Falha no envio do e-mail: %s", exc)
 
 
 if __name__ == "__main__":
