@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import re
 from html import escape as _esc
 from pathlib import Path
@@ -189,36 +190,57 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
 
 # ── Geração do report HTML ────────────────────────────────────────────────────
 
-_LOGO_PATH = Path(__file__).parent.parent / "relatorio_dashboard" / "1775153144791_image.png"
+_LOGO_PATH   = Path(__file__).parent.parent / "relatorio_dashboard" / "ícone uniatend.png"
+_CONFIG_PATH = Path(__file__).parent.parent / "config.json"
+
+_SLA_ESTOURO  = "Acima do Teto (Nota: Tempo Corrido Bruto)"
+_SLA_EXCLUIDOS = {"SLA Não Definido", "Sem Registro de Tempo", "Prazo Não Aplicável"}
+_MESES_PT = {
+    1: "Janeiro", 2: "Fevereiro", 3: "Março",    4: "Abril",
+    5: "Maio",    6: "Junho",     7: "Julho",     8: "Agosto",
+    9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro",
+}
 
 _CSS = (
     "body{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#333;"
-    "background:#f0f7f3;margin:0;padding:20px}"
+    "background:#f0f7f7;margin:0;padding:20px}"
     ".w{max-width:700px;margin:0 auto;background:#fff;border-radius:8px;"
     "box-shadow:0 2px 10px rgba(0,0,0,.1);overflow:hidden}"
-    ".lb{background:#fff;padding:14px 24px;border-bottom:3px solid #68bd46}"
+    ".lb{background:#fff;padding:14px 24px;border-bottom:3px solid #008080}"
     ".lb img{height:42px;display:block}"
-    ".hd{background:#02683d;padding:16px 24px}"
+    ".hd{background:#005f5f;padding:16px 24px}"
     ".hd h1{margin:0;font-size:17px;font-weight:700;color:#fff;letter-spacing:.3px}"
-    ".hd p{margin:5px 0 0;font-size:12px;color:#a8d96a}"
+    ".hd p{margin:5px 0 0;font-size:12px;color:#b2e5e5}"
     ".bd{padding:12px 24px 28px}"
     ".rt{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;"
-    "color:#02683d;margin:22px 0 6px;padding-bottom:5px;border-bottom:2px solid #68bd46}"
+    "color:#005f5f;margin:22px 0 6px;padding-bottom:5px;border-bottom:2px solid #008080}"
     ".rc{font-weight:normal;text-transform:none;letter-spacing:0;color:#999;font-size:12px}"
-    ".tk{border:1px solid #d4edda;border-radius:6px;padding:11px 14px;margin:7px 0;"
-    "background:#fafffe}"
-    ".ti{font-weight:700;color:#014d2d;font-size:13px}"
+    ".tk{border:1px solid #b2e5e5;border-radius:6px;padding:11px 14px;margin:7px 0;"
+    "background:#f5fdfd}"
+    ".ti{font-weight:700;color:#003d3d;font-size:13px}"
     ".tm{color:#888;font-size:11px;margin:3px 0 8px}"
     ".f{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;"
     "font-weight:600;margin:2px 3px 2px 0}"
     ".fc{background:#fde8e8;color:#c0392b;border:1px solid #e74c3c}"
     ".fa{background:#fff4e5;color:#c07800;border:1px solid #e07b00}"
     ".fl{background:#fffde7;color:#7a6200;border:1px solid #d4ac0d}"
-    ".um{background:#f0faf4;border-left:3px solid #4aae6f;padding:6px 10px;"
+    ".um{background:#eef8f8;border-left:3px solid #008080;padding:6px 10px;"
     "font-size:11px;color:#555;margin-top:8px;border-radius:0 4px 4px 0;"
     "font-style:italic;word-break:break-word}"
     ".ft{padding:10px 24px;font-size:11px;color:#bbb;border-top:1px solid #f0f0f0;"
     "text-align:center}"
+    ".ms{background:#eef8f8;border-bottom:1px solid #b2e5e5;padding:14px 24px}"
+    ".ms-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;"
+    "color:#007070;margin-bottom:10px}"
+    ".ms-g{display:flex;gap:10px}"
+    ".ms-c{flex:1;background:#fff;border:1px solid #b2e5e5;border-radius:6px;"
+    "padding:10px 12px;text-align:center}"
+    ".ms-l{font-size:10px;font-weight:700;text-transform:uppercase;color:#888;letter-spacing:.3px}"
+    ".ms-v{font-size:20px;font-weight:800;margin:4px 0 2px}"
+    ".ms-m{font-size:10px;font-weight:600;color:#555;margin-bottom:2px}"
+    ".ms-s{font-size:10px;color:#999}"
+    ".ok{color:#005f5f}"
+    ".nk{color:#c0392b}"
 )
 
 
@@ -278,6 +300,104 @@ def _tem_flag(row: pd.Series) -> bool:
     )
 
 
+def _calcular_metricas_mes(df_tickets: pd.DataFrame) -> dict:
+    hoje = pd.Timestamp.now()
+    df = df_tickets.copy()
+    if "Data Abertura" in df.columns:
+        df["_data_ab"] = pd.to_datetime(df["Data Abertura"], dayfirst=True, errors="coerce")
+    else:
+        df["_data_ab"] = pd.NaT
+    df_mes = df[(df["_data_ab"].dt.month == hoje.month) & (df["_data_ab"].dt.year == hoje.year)]
+
+    concluidos = (
+        df_mes[df_mes["Status"].str.strip().str.lower().str.contains("conclu", na=False)]
+        if "Status" in df_mes.columns else df_mes.iloc[:0]
+    )
+    pct_fora = None
+    if "Status SLA" in concluidos.columns:
+        com_sla = concluidos[~concluidos["Status SLA"].isin(_SLA_EXCLUIDOS)]
+        if len(com_sla) > 0:
+            pct_fora = float((com_sla["Status SLA"] == _SLA_ESTOURO).sum()) / len(com_sla)
+
+    meta_mes, baseline = None, 0.48
+    try:
+        cfg = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        metas = {int(k): v for k, v in cfg.get("metas_sla_mensal", {}).items()}
+        meta_mes = metas.get(hoje.month)
+        baseline = cfg.get("baseline_historico", 0.48)
+    except Exception:
+        pass
+
+    pct_causa = None
+    if "Causa Raíz" in df_mes.columns and len(df_mes) > 0:
+        pct_causa = float(
+            (df_mes["Causa Raíz"].notna() & (df_mes["Causa Raíz"].astype(str).str.strip() != "")).mean()
+        )
+
+    return {
+        "pct_fora_prazo": pct_fora,
+        "meta_mes": meta_mes,
+        "baseline": baseline,
+        "pct_causa_raiz": pct_causa,
+        "mes_nome": f"{_MESES_PT.get(hoje.month, '')}/{hoje.year}",
+        "n_concluidos_mes": len(concluidos),
+        "n_tickets_mes": len(df_mes),
+    }
+
+
+def _html_metricas(m: dict) -> str:
+    def _card(label: str, valor: str, meta_txt: str, sub: str) -> str:
+        return (
+            f"<div class='ms-c'><div class='ms-l'>{label}</div>"
+            f"<div class='ms-v'>{valor}</div>"
+            f"<div class='ms-m'>{meta_txt}</div>"
+            f"<div class='ms-s'>{sub}</div></div>"
+        )
+
+    pct = m["pct_fora_prazo"]
+    meta = m["meta_mes"] or m["baseline"]
+
+    # Card 1 — Fora do Prazo
+    if pct is not None:
+        cor1 = "ok" if pct <= meta else "nk"
+        v1 = f'<span class="{cor1}">{pct * 100:.1f}%</span>'
+        s1 = f'{m["n_concluidos_mes"]} conclu&iacute;dos no m&ecirc;s'
+    else:
+        v1, s1 = '<span style="color:#bbb">&mdash;</span>', "sem conclu&iacute;dos no m&ecirc;s"
+    m1 = f'Meta: &lt;&nbsp;{meta * 100:.0f}%'
+
+    # Card 2 — Tolerância Máxima
+    if m["meta_mes"] is not None:
+        folga = (m["meta_mes"] - (pct or 0.0)) * 100
+        cor2 = "ok" if folga >= 0 else "nk"
+        v2 = f'<span class="{cor2}">{abs(folga):.1f}pp</span>'
+        s2 = "de margem" if folga >= 0 else "acima da meta"
+        m2 = f'Limite do m&ecirc;s: &lt;&nbsp;{m["meta_mes"] * 100:.0f}%'
+    else:
+        v2 = f'<span style="color:#888">&mdash;</span>'
+        s2 = "m&ecirc;s sem meta definida"
+        m2 = f'Base hist&oacute;rica: &lt;&nbsp;{m["baseline"] * 100:.0f}%'
+
+    # Card 3 — Causa Raíz
+    pct_cr = m["pct_causa_raiz"]
+    if pct_cr is not None:
+        cor3 = "ok" if pct_cr >= 0.8 else ("nk" if pct_cr < 0.5 else "")
+        v3 = f'<span{"" if not cor3 else f" class=\'{cor3}\'"}">{pct_cr * 100:.1f}%</span>'
+        s3 = f'{m["n_tickets_mes"]} tickets no m&ecirc;s'
+    else:
+        v3, s3 = '<span style="color:#bbb">&mdash;</span>', "sem dados"
+    m3 = "Meta: 100%"
+
+    titulo = f"M&eacute;tricas do M&ecirc;s &mdash; {_esc(m['mes_nome'])}"
+    return (
+        f"<div class='ms'><div class='ms-t'>{titulo}</div><div class='ms-g'>"
+        f"{_card('Fora do Prazo', v1, m1, s1)}"
+        f"{_card('Margem Dispon&iacute;vel', v2, m2, s2)}"
+        f"{_card('Causa Ra&iacute;z', v3, m3, s3)}"
+        f"</div></div>"
+    )
+
+
 def gerar_html_report(
     df_audit: pd.DataFrame,
     df_tickets: pd.DataFrame,
@@ -289,7 +409,9 @@ def gerar_html_report(
     logo_html = ""
     if _LOGO_PATH.exists():
         b64 = base64.b64encode(_LOGO_PATH.read_bytes()).decode()
-        logo_html = f"<div class='lb'><img src='data:image/png;base64,{b64}' alt='Agrocontar'></div>"
+        logo_html = f"<div class='lb'><img src='data:image/png;base64,{b64}' alt='UniATEND'></div>"
+
+    html_met = _html_metricas(_calcular_metricas_mes(df_tickets))
 
     df_hist = consolidar_historico(df_textos_raw)
     hist_idx = df_hist.set_index("id_ticket")["historico"].to_dict()
@@ -312,6 +434,7 @@ def gerar_html_report(
             f"{logo_html}"
             "<div class='hd'><h1>Auditoria UniATEND</h1>"
             f"<p>{data_str} &nbsp;&middot;&nbsp; {subtit}</p></div>"
+            f"{html_met}"
             f"<div class='bd'>{corpo}</div>"
             "<div class='ft'>Gerado automaticamente pelo pipeline UniATEND</div>"
             "</div></body></html>"
@@ -338,6 +461,9 @@ def gerar_html_report(
                 else f"#{tid}"
             )
 
+            tipo = str(tk.get("Tipo", "") or "").strip()
+            tipo_str = _esc(tipo) if tipo and tipo != "nan" else ""
+
             cat = str(row.get("Categoria", "")).strip()
             sub = str(tk.get("Subcategoria", "") or "").strip()
             cat_str = (
@@ -354,7 +480,7 @@ def gerar_html_report(
             except Exception:
                 ab_str = f"Aberto h&aacute; {dias_ab} dias" if dias_ab is not None else ""
             meta = "&nbsp;&nbsp;|&nbsp;&nbsp;".join(
-                p for p in [cat_str, status, ab_str] if p
+                p for p in [tipo_str, cat_str, status, ab_str] if p
             )
 
             flags = _flags_do_ticket(row, tk, hist_idx.get(tid, []))
