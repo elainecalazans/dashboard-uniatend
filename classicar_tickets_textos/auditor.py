@@ -239,7 +239,8 @@ def _dias_desde(ts) -> int | None:
 
 def _flags_do_ticket(row: pd.Series, tk: dict, historico: list[dict] | None = None) -> list[dict]:
     flags = []
-    if row.get("Risco Zumbi") == "Sim":
+    is_melhoria = str(row.get("Categoria", "")).strip().lower() == "melhorias"
+    if row.get("Risco Zumbi") == "Sim" and not is_melhoria:
         gap = row.get("Gap Máx (dias)")
         msgs_com_ts = [h for h in (historico or []) if pd.notna(h.get("timestamp"))]
         ja_respondido = bool(msgs_com_ts) and msgs_com_ts[-1]["papel"] == "tecnico"
@@ -267,8 +268,9 @@ def _flags_do_ticket(row: pd.Series, tk: dict, historico: list[dict] | None = No
 
 
 def _tem_flag(row: pd.Series) -> bool:
+    is_melhoria = str(row.get("Categoria", "")).strip().lower() == "melhorias"
     return (
-        row.get("Risco Zumbi") == "Sim"
+        (not is_melhoria and row.get("Risco Zumbi") == "Sim")
         or row.get("Regra 24 Dias") == "Sim"
         or (row.get("FRT OK") == "Não" and pd.notna(row.get("FRT (horas)")))
         or row.get("Resolução Genérica") == "Sim"
@@ -296,7 +298,11 @@ def gerar_html_report(
     df_tk["ID"] = df_tk["ID"].astype(str).str.strip()
     tk_idx = df_tk.set_index("ID").to_dict("index")
 
-    df_flag = df_audit[df_audit.apply(_tem_flag, axis=1)].copy()
+    # Apenas tickets em aberto — concluídos são histórico, não requerem ação do líder
+    df_flag = df_audit[
+        df_audit.apply(_tem_flag, axis=1)
+        & ~df_audit["Status"].str.strip().str.lower().str.contains("conclu", na=False)
+    ].copy()
 
     def _tpl(corpo: str, subtit: str) -> str:
         return (
