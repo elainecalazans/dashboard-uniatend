@@ -107,6 +107,7 @@ def _aplicar_incremental(df_base: pd.DataFrame) -> pd.DataFrame:
             )
             for col in ("Causa Raíz", "Título"):
                 if col in df.columns:
+                    df[col] = df[col].astype(object)
                     df.loc[mask_novos, col] = ""
 
         return pd.concat([df_historico_ausente, df], ignore_index=True)
