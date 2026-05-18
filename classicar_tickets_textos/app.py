@@ -138,6 +138,11 @@ def _aplicar_sla(df: pd.DataFrame) -> pd.DataFrame:
     mask_sem_hist = (~mask_com_regra) & df["SLA Piso"].isna()
     df.loc[mask_sem_hist, "Status SLA"] = "SLA Não Definido"
 
+    if "Tipo" in df.columns:
+        mask_tipo_melhoria = df["Tipo"].str.strip().str.lower() == "melhoria"
+        df.loc[mask_tipo_melhoria, "Status SLA"] = "Prazo Não Aplicável"
+        df.loc[mask_tipo_melhoria, ["SLA Piso", "SLA Teto", "% Consumo SLA"]] = np.nan
+
     return df.drop(columns=["_Eng_Status", "_Eng_Piso", "_Eng_Teto", "_Eng_Consumo", "_Tem_Regra"])
 
 

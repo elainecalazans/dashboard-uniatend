@@ -126,8 +126,12 @@ def _resolucao_generica(msgs_tecnico: list[dict]) -> bool:
     return bool(_GENERICA_RE.search(sem_fechamento))
 
 
-def _regra_24_dias(ultima_atualizacao, categoria: str, status: str) -> str:
-    if str(categoria).strip().lower() != "melhorias":
+def _regra_24_dias(ultima_atualizacao, categoria: str, status: str, tipo: str = "") -> str:
+    is_melhoria = (
+        str(categoria).strip().lower() == "melhorias"
+        or str(tipo).strip().lower() == "melhoria"
+    )
+    if not is_melhoria:
         return "-"
     if "conclu" in str(status).strip().lower():
         return "-"
@@ -165,18 +169,20 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
         causa_raiz = str(ticket.get("Causa Raíz", "")).strip()
         categoria = ticket.get("Categoria", "")
         status = ticket.get("Status", "")
+        tipo = str(ticket.get("Tipo", "") or "").strip()
 
         registros.append({
             "ID": ticket_id,
             "Responsável": ticket.get("Responsável", ""),
             "Módulo": ticket.get("Módulo", ""),
+            "Tipo": tipo,
             "Categoria": categoria,
             "Status": status,
             "FRT (horas)": round(frt, 1) if frt is not None else None,
             "FRT OK": "Sim" if (frt is not None and frt <= 2.0) else ("Não" if frt is not None else _label_sem_frt(historico)),
             "Gap Máx (dias)": round(max_gap, 1) if max_gap is not None else None,
             "Risco Zumbi": "Sim" if (max_gap is not None and max_gap > 5) else "Não",
-            "Regra 24 Dias": _regra_24_dias(ticket.get("Última Atualização"), categoria, status),
+            "Regra 24 Dias": _regra_24_dias(ticket.get("Última Atualização"), categoria, status, tipo),
             "Resolução Genérica": "Sim" if _resolucao_generica(msgs_tecnico) else "Não",
             "Causa Raíz Preenchida": "Sim" if (causa_raiz not in ("", "nan") and len(causa_raiz) > 3) else "Não",
         })
@@ -241,7 +247,15 @@ _CSS = (
     ".ms-s{font-size:10px;color:#999}"
     ".ok{color:#1a8a3a;font-weight:800}"
     ".nk{color:#c0392b;font-weight:800}"
+    ".dv{padding:12px 24px 20px;border-bottom:1px solid #e8e8e8}"
+    ".sh{background:#005f5f;padding:11px 24px}"
+    ".sh-lbl{font-size:13px;font-weight:700;color:#fff;letter-spacing:.3px}"
 )
+
+
+def _primeiro_nome(nome: str) -> str:
+    partes = str(nome or "").strip().split()
+    return partes[0].title() if partes else "—"
 
 
 def _ultima_msg_tecnico(historico: list[dict]) -> str:
@@ -264,7 +278,10 @@ def _dias_desde(ts) -> int | None:
 
 def _flags_do_ticket(row: pd.Series, tk: dict, historico: list[dict] | None = None) -> list[dict]:
     flags = []
-    is_melhoria = str(row.get("Categoria", "")).strip().lower() == "melhorias"
+    is_melhoria = (
+        str(row.get("Categoria", "")).strip().lower() == "melhorias"
+        or str(row.get("Tipo", "")).strip().lower() == "melhoria"
+    )
     if row.get("Risco Zumbi") == "Sim" and not is_melhoria:
         gap = row.get("Gap Máx (dias)")
         msgs_com_ts = [h for h in (historico or []) if pd.notna(h.get("timestamp"))]
@@ -293,7 +310,10 @@ def _flags_do_ticket(row: pd.Series, tk: dict, historico: list[dict] | None = No
 
 
 def _tem_flag(row: pd.Series) -> bool:
-    is_melhoria = str(row.get("Categoria", "")).strip().lower() == "melhorias"
+    is_melhoria = (
+        str(row.get("Categoria", "")).strip().lower() == "melhorias"
+        or str(row.get("Tipo", "")).strip().lower() == "melhoria"
+    )
     return (
         (not is_melhoria and row.get("Risco Zumbi") == "Sim")
         or row.get("Regra 24 Dias") == "Sim"
@@ -401,6 +421,153 @@ def _html_metricas(m: dict) -> str:
     )
 
 
+def _calcular_desvios_sla(df_tickets: pd.DataFrame) -> list[dict]:
+    hoje = pd.Timestamp.now()
+    df = df_tickets.copy()
+
+    if "Status SLA" not in df.columns or "Status" not in df.columns:
+        return []
+
+    df["_data_ab"] = pd.to_datetime(
+        df.get("Data Abertura", pd.Series(dtype=str)), dayfirst=True, errors="coerce"
+    )
+
+    is_mes = (df["_data_ab"].dt.month == hoje.month) & (df["_data_ab"].dt.year == hoje.year)
+    is_concluido = df["Status"].str.strip().str.lower().str.contains("conclu", na=False)
+    is_aberto = ~is_concluido
+    is_estouro = df["Status SLA"] == _SLA_ESTOURO
+    is_sla_definido = ~df["Status SLA"].isin(_SLA_EXCLUIDOS) & df["Status SLA"].notna()
+
+    mask_dev = is_estouro & ((is_concluido & is_mes) | is_aberto)
+    mask_base = is_sla_definido & ((is_concluido & is_mes) | is_aberto)
+
+    df_dev = df[mask_dev]
+    df_base = df[mask_base]
+
+    if df_dev.empty:
+        return []
+
+    grupos = []
+    for (modulo, categoria), grp in df_dev.groupby(["Módulo", "Categoria"]):
+        if pd.isna(modulo) or pd.isna(categoria):
+            continue
+        total = len(
+            df_base[(df_base["Módulo"] == modulo) & (df_base["Categoria"] == categoria)]
+        )
+        n = len(grp)
+        pct = n / total * 100 if total > 0 else 0.0
+        tickets = [
+            {
+                "id": str(row["ID"]),
+                "titulo": str(row.get("Título", "") or "").strip(),
+                "tipo": str(row.get("Tipo", "") or "").strip(),
+                "subcategoria": str(row.get("Subcategoria", "") or "").strip(),
+                "status": str(row.get("Status", "") or "").strip(),
+                "data_abertura": row.get("Data Abertura"),
+                "resp": str(row.get("Responsável", "") or "").strip(),
+                "piso": row.get("SLA Piso"),
+                "teto": row.get("SLA Teto"),
+                "gasto": row.get("Tempo Gasto (Horas)"),
+                "status_sla": str(row.get("Status SLA", "") or ""),
+            }
+            for _, row in grp.sort_values("ID").iterrows()
+        ]
+        grupos.append({
+            "modulo": str(modulo),
+            "categoria": str(categoria),
+            "n": n,
+            "total": total,
+            "pct": pct,
+            "tickets": tickets,
+        })
+
+    return sorted(grupos, key=lambda g: -g["pct"])
+
+
+def _fmt_horas(val) -> str:
+    try:
+        h = float(val)
+        return f"{int(h)}h" if h == int(h) else f"{h:.1f}h"
+    except Exception:
+        return "—"
+
+
+def _html_desvios(grupos: list[dict], mes_nome: str) -> str:
+    if not grupos:
+        return ""
+
+    blocos = []
+    for g in grupos:
+        grupo_str = f"{_esc(g['modulo'])} &rsaquo; {_esc(g['categoria'])}"
+        n, total, pct = g["n"], g["total"], g["pct"]
+        s = "desvio" if n == 1 else "desvios"
+        subtit = f"{n} {s} de {total} &middot; {pct:.0f}%"
+
+        tks_html = []
+        for t in g["tickets"]:
+            tid = t["id"]
+            titulo_raw = t.get("titulo", "").strip()
+            header = (
+                f"#{_esc(tid)} &mdash; {_esc(titulo_raw)}"
+                if titulo_raw and titulo_raw != "nan"
+                else f"#{_esc(tid)}"
+            )
+
+            tipo = t.get("tipo", "").strip()
+            tipo_str = _esc(tipo) if tipo and tipo != "nan" else ""
+
+            cat = _esc(g["categoria"])
+            sub = t.get("subcategoria", "").strip()
+            cat_str = f"{cat} &rsaquo; {_esc(sub)}" if sub and sub != "nan" else cat
+
+            status = _esc(t.get("status", "").strip())
+            resp   = _esc(t.get("resp", "").strip())
+
+            data_ab = t.get("data_abertura")
+            dias_ab = _dias_desde(data_ab)
+            try:
+                data_fmt = pd.to_datetime(data_ab, dayfirst=True, errors="coerce").strftime("%d/%m/%Y")
+                ab_str = f"Aberto em {data_fmt} ({dias_ab} dias)" if dias_ab is not None else f"Aberto em {data_fmt}"
+            except Exception:
+                ab_str = f"Aberto h&aacute; {dias_ab} dias" if dias_ab is not None else ""
+
+            meta = "&nbsp;&nbsp;|&nbsp;&nbsp;".join(
+                p for p in [tipo_str, cat_str, status, resp, ab_str] if p
+            )
+
+            piso  = f"Piso {_fmt_horas(t['piso'])}"  if pd.notna(t.get("piso"))  else None
+            teto  = f"Teto {_fmt_horas(t['teto'])}"  if pd.notna(t.get("teto"))  else None
+            gv    = t.get("gasto")
+            gasto = f"Gasto {_fmt_horas(gv)}"        if (pd.notna(gv) and float(gv) > 0) else None
+            sts   = re.sub(r"\s*\(.*?\)", "", t["status_sla"]).strip()
+
+            flags_html = "".join(
+                f'<span class="f {cls}">{_esc(txt)}</span>'
+                for txt, cls in [(piso, "fl"), (teto, "fl"), (gasto, "fa"), (sts, "fc")]
+                if txt
+            )
+
+            tks_html.append(
+                f'<div class="tk">'
+                f'<div class="ti">{header}</div>'
+                f'<div class="tm">{meta}</div>'
+                f'<div>{flags_html}</div>'
+                f'</div>'
+            )
+
+        blocos.append(
+            f'<div class="rt">{grupo_str}'
+            f' <span class="rc">— {subtit}</span></div>'
+            + "".join(tks_html)
+        )
+
+    titulo = f"Desvios de SLA &mdash; {_esc(mes_nome)}"
+    return (
+        f"<div class='sh'><div class='sh-lbl'>{titulo}</div></div>"
+        f"<div class='dv'>" + "".join(blocos) + "</div>"
+    )
+
+
 def gerar_html_report(
     df_audit: pd.DataFrame,
     df_tickets: pd.DataFrame,
@@ -414,7 +581,9 @@ def gerar_html_report(
         b64 = base64.b64encode(_LOGO_PATH.read_bytes()).decode()
         logo_html = f"<div class='lb'><img src='data:image/png;base64,{b64}' alt='UniATEND'></div>"
 
-    html_met = _html_metricas(_calcular_metricas_mes(df_tickets))
+    m = _calcular_metricas_mes(df_tickets)
+    html_met = _html_metricas(m)
+    html_dev = _html_desvios(_calcular_desvios_sla(df_tickets), m["mes_nome"])
 
     df_hist = consolidar_historico(df_textos_raw)
     hist_idx = df_hist.set_index("id_ticket")["historico"].to_dict()
@@ -438,6 +607,8 @@ def gerar_html_report(
             "<div class='hd'><h1>Auditoria UniATEND</h1>"
             f"<p>{data_str} &nbsp;&middot;&nbsp; {subtit}</p></div>"
             f"{html_met}"
+            f"{html_dev}"
+            "<div class='sh'><div class='sh-lbl'>Mandamentos do Playbook</div></div>"
             f"<div class='bd'>{corpo}</div>"
             "<div class='ft'>Gerado automaticamente pelo pipeline UniATEND</div>"
             "</div></body></html>"
