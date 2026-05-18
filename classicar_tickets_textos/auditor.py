@@ -352,9 +352,9 @@ def _calcular_metricas_mes(df_tickets: pd.DataFrame) -> dict:
         pass
 
     pct_causa = None
-    if "Causa Raíz" in df_mes.columns and len(df_mes) > 0:
+    if "Causa Raíz" in concluidos.columns and len(concluidos) > 0:
         pct_causa = float(
-            (df_mes["Causa Raíz"].notna() & (df_mes["Causa Raíz"].astype(str).str.strip() != "")).mean()
+            (concluidos["Causa Raíz"].notna() & (concluidos["Causa Raíz"].astype(str).str.strip() != "")).mean()
         )
 
     return {
@@ -406,7 +406,7 @@ def _html_metricas(m: dict) -> str:
     if pct_cr is not None:
         cor3 = "ok" if pct_cr >= 0.8 else ("nk" if pct_cr < 0.5 else "")
         v3 = f'<span{"" if not cor3 else f" class=\'{cor3}\'"}">{pct_cr * 100:.1f}%</span>'
-        s3 = f'{m["n_tickets_mes"]} tickets no m&ecirc;s'
+        s3 = f'{m["n_concluidos_mes"]} conclu&iacute;dos no m&ecirc;s'
     else:
         v3, s3 = '<span style="color:#bbb">&mdash;</span>', "sem dados"
     m3 = "Meta: 100%"

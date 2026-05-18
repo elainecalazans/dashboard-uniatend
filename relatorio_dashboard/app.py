@@ -172,7 +172,8 @@ with tab_comp:
 
     with col_c2:
         with st.container(border=True):
-            fig2 = create_causa_raiz_chart(df_tend)
+            df_concl_tend = df_tend[df_tend["Status"].isin(status_concluido)]
+            fig2 = create_causa_raiz_chart(df_concl_tend)
             st.plotly_chart(fig2, use_container_width=True, theme=None)
 
 # ── TAB 2: Consolidado ──────────────────────────────────────────────────
@@ -184,7 +185,7 @@ with tab_cons:
     if visao not in df_atual.columns or df_atual[visao].dropna().empty:
         st.warning(f"Sem dados suficientes na coluna '{visao}' para consolidar.")
     else:
-        st.dataframe(build_consolidated_table(df_atual, visao), use_container_width=True, hide_index=True)
+        st.dataframe(build_consolidated_table(df_atual, visao, status_concluido), use_container_width=True, hide_index=True)
 
 # ── TAB 3: Auditoria ────────────────────────────────────────────────────
 with tab_det:

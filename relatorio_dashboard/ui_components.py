@@ -24,8 +24,9 @@ def calcular_kpis(
         if len(com_sla) > 0 else 0.0
     )
     tx_causa = (
-        dados["Causa_Raiz_Preenchida"].mean()
-        if "Causa_Raiz_Preenchida" in dados.columns else 0.0
+        concluidos["Causa_Raiz_Preenchida"].mean()
+        if "Causa_Raiz_Preenchida" in concluidos.columns and len(concluidos) > 0
+        else 0.0
     )
     return vol, pct_estouro, tx_causa
 

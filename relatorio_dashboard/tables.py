@@ -75,9 +75,10 @@ def _style_status_label(val) -> str:
     return mapping.get(str(val), "")
 
 
-def build_consolidated_table(df_atual: pd.DataFrame, visao: str) -> Styler:
+def build_consolidated_table(df_atual: pd.DataFrame, visao: str, status_concluido: list[str] | None = None) -> Styler:
+    df_filled = df_atual.fillna({visao: "Não Definido"})
     df_grp = (
-        df_atual.fillna({visao: "Não Definido"})
+        df_filled
         .groupby(visao)
         .agg(
             Total=("ID", "count"),
@@ -89,10 +90,23 @@ def build_consolidated_table(df_atual: pd.DataFrame, visao: str) -> Styler:
         .reset_index()
     )
 
-    denom = df_grp["Total"].replace(0, np.nan)
-    df_grp["% No Prazo"]       = (df_grp["No_Prazo"]         / denom * 100).fillna(0)
-    df_grp["% Fora do Prazo"]  = (df_grp["Estourados"]       / denom * 100).fillna(0)
-    df_grp["% Causa Raiz"]     = (df_grp["Causa_Preenchida"] / denom * 100).fillna(0)
+    if status_concluido:
+        concl_grp = (
+            df_filled[df_filled["Status"].isin(status_concluido)]
+            .groupby(visao)
+            .agg(Concluidos=("ID", "count"))
+            .reset_index()
+        )
+        df_grp = df_grp.merge(concl_grp, on=visao, how="left")
+        df_grp["Concluidos"] = df_grp["Concluidos"].fillna(0)
+    else:
+        df_grp["Concluidos"] = df_grp["Total"]
+
+    denom_sla   = df_grp["Total"].replace(0, np.nan)
+    denom_causa = df_grp["Concluidos"].replace(0, np.nan)
+    df_grp["% No Prazo"]       = (df_grp["No_Prazo"]         / denom_sla   * 100).fillna(0)
+    df_grp["% Fora do Prazo"]  = (df_grp["Estourados"]       / denom_sla   * 100).fillna(0)
+    df_grp["% Causa Raiz"]     = (df_grp["Causa_Preenchida"] / denom_causa * 100).fillna(0)
 
     df_grp = df_grp.rename(columns={
         "Tempo_Medio": "Tempo Médio (h)",
