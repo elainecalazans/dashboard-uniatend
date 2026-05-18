@@ -612,9 +612,16 @@ def gerar_html_report(
         & ~df_audit["Status"].str.strip().str.lower().str.contains("conclu", na=False)
     ].copy()
 
-    link_dashboard = (
-        f"<a href='{dashboard_url}' style='color:#005f5f;font-weight:700;text-decoration:none;'>"
-        f"Acessar o dashboard completo &rarr;</a>&nbsp;&nbsp;|&nbsp;&nbsp;"
+    cta_dashboard = (
+        f"<div style='background:#eef8f8;border-top:1px solid #b2e5e5;"
+        f"padding:20px 24px;text-align:center;'>"
+        f"<div style='font-size:12px;color:#555;margin-bottom:12px;'>"
+        f"Acesse o dashboard para filtrar por per&iacute;odo, m&oacute;dulo e ver o hist&oacute;rico completo.</div>"
+        f"<a href='{dashboard_url}' style='display:inline-block;background:#005f5f;color:#ffffff;"
+        f"font-weight:700;font-size:13px;text-decoration:none;padding:11px 28px;"
+        f"border-radius:6px;letter-spacing:.3px;'>"
+        f"Acessar o Dashboard &rarr;</a>"
+        f"</div>"
         if dashboard_url else ""
     )
 
@@ -630,7 +637,8 @@ def gerar_html_report(
             f"{html_dev}"
             "<div class='sh'><div class='sh-lbl'>Mandamentos do Playbook</div></div>"
             f"<div class='bd'>{corpo}</div>"
-            f"<div class='ft'>{link_dashboard}Gerado automaticamente pelo pipeline UniATEND</div>"
+            f"{cta_dashboard}"
+            "<div class='ft'>Gerado automaticamente pelo pipeline UniATEND</div>"
             "</div></body></html>"
         )
 
