@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import json
 import re
 from html import escape as _esc
@@ -196,7 +195,6 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
 
 # ── Geração do report HTML ────────────────────────────────────────────────────
 
-_LOGO_PATH   = Path(__file__).parent.parent / "relatorio_dashboard" / "ícone uniatend.png"
 _CONFIG_PATH = Path(__file__).parent.parent / "config.json"
 
 _SLA_ESTOURO  = "Acima do Teto (Nota: Tempo Corrido Bruto)"
@@ -213,7 +211,7 @@ _CSS = (
     ".w{max-width:700px;margin:0 auto;background:#fff;border-radius:8px;"
     "box-shadow:0 2px 10px rgba(0,0,0,.1);overflow:hidden}"
     ".lb{background:#fff;padding:14px 24px;border-bottom:3px solid #008080}"
-    ".lb img{height:42px;display:block}"
+    ".lb-txt{font-size:18px;font-weight:800;color:#005f5f;letter-spacing:.5px}"
     ".hd{background:#005f5f;padding:16px 24px}"
     ".hd h1{margin:0;font-size:17px;font-weight:700;color:#fff;letter-spacing:.3px}"
     ".hd p{margin:5px 0 0;font-size:12px;color:#b2e5e5}"
@@ -232,15 +230,14 @@ _CSS = (
     ".fl{background:#fffde7;color:#7a6200;border:1px solid #d4ac0d}"
     ".um{background:#eef8f8;border-left:3px solid #008080;padding:6px 10px;"
     "font-size:11px;color:#555;margin-top:8px;border-radius:0 4px 4px 0;"
-    "font-style:italic;word-break:break-word}"
+    "font-style:italic}"
     ".ft{padding:10px 24px;font-size:11px;color:#bbb;border-top:1px solid #f0f0f0;"
     "text-align:center}"
     ".ms{background:#eef8f8;border-bottom:1px solid #b2e5e5;padding:14px 24px}"
     ".ms-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;"
     "color:#007070;margin-bottom:10px}"
-    ".ms-g{display:flex;gap:10px}"
-    ".ms-c{flex:1;background:#fff;border:1px solid #b2e5e5;border-radius:6px;"
-    "padding:10px 12px;text-align:center}"
+    ".ms-c{background:#fff;border:1px solid #b2e5e5;border-radius:6px;"
+    "padding:10px 12px;text-align:center;vertical-align:top}"
     ".ms-l{font-size:10px;font-weight:700;text-transform:uppercase;color:#888;letter-spacing:.3px}"
     ".ms-v{font-size:20px;font-weight:800;margin:4px 0 2px}"
     ".ms-m{font-size:10px;font-weight:600;color:#555;margin-bottom:2px}"
@@ -413,11 +410,15 @@ def _html_metricas(m: dict) -> str:
 
     titulo = f"M&eacute;tricas do M&ecirc;s &mdash; {_esc(m['mes_nome'])}"
     return (
-        f"<div class='ms'><div class='ms-t'>{titulo}</div><div class='ms-g'>"
-        f"{_card('Fora do Prazo', v1, m1, s1)}"
-        f"{_card('Margem Dispon&iacute;vel', v2, m2, s2)}"
-        f"{_card('Causa Ra&iacute;z', v3, m3, s3)}"
-        f"</div></div>"
+        f"<div class='ms'><div class='ms-t'>{titulo}</div>"
+        f"<table width='100%' cellspacing='0' cellpadding='0'><tr>"
+        f"<td style='width:32%;padding-right:5px;vertical-align:top'>"
+        f"{_card('Fora do Prazo', v1, m1, s1)}</td>"
+        f"<td style='width:32%;padding:0 5px;vertical-align:top'>"
+        f"{_card('Margem Dispon&iacute;vel', v2, m2, s2)}</td>"
+        f"<td style='width:32%;padding-left:5px;vertical-align:top'>"
+        f"{_card('Causa Ra&iacute;z', v3, m3, s3)}</td>"
+        f"</tr></table></div>"
     )
 
 
@@ -576,10 +577,7 @@ def gerar_html_report(
     hoje = pd.Timestamp.now().normalize()
     data_str = hoje.strftime("%d/%m/%Y")
 
-    logo_html = ""
-    if _LOGO_PATH.exists():
-        b64 = base64.b64encode(_LOGO_PATH.read_bytes()).decode()
-        logo_html = f"<div class='lb'><img src='data:image/png;base64,{b64}' alt='UniATEND'></div>"
+    logo_html = "<div class='lb'><span class='lb-txt'>UniATEND</span></div>"
 
     m = _calcular_metricas_mes(df_tickets)
     html_met = _html_metricas(m)

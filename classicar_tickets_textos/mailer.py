@@ -6,6 +6,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
 
+import premailer
+
 
 def _carregar_env() -> None:
     env = Path(__file__).parent.parent / ".env"
@@ -24,19 +26,23 @@ def enviar_report(html_body: str, data_str: str) -> None:
 
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASS", "")
-    report_to = os.environ.get("REPORT_TO", "andressa.rodrigues@bhub.ai")
+    report_to_raw = os.environ.get("REPORT_TO", "andressa.rodrigues@bhub.ai")
+    report_to = [addr.strip() for addr in report_to_raw.replace(";", ",").split(",") if addr.strip()]
 
     if not smtp_user or not smtp_pass:
         raise ValueError("SMTP_USER e SMTP_PASS precisam estar configurados no .env")
+    if not report_to:
+        raise ValueError("REPORT_TO não contém nenhum endereço válido")
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Auditoria UniATEND — {data_str}"
     msg["From"] = smtp_user
-    msg["To"] = report_to
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    msg["To"] = ", ".join(report_to)
+    html_inline = premailer.transform(html_body)
+    msg.attach(MIMEText(html_inline, "html", "utf-8"))
 
     with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
         smtp.ehlo()
         smtp.starttls()
         smtp.login(smtp_user, smtp_pass)
-        smtp.sendmail(smtp_user, [report_to], msg.as_string())
+        smtp.sendmail(smtp_user, report_to, msg.as_string())
