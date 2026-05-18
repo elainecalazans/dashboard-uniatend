@@ -51,18 +51,21 @@ pip install -r requirements.txt
 
 ### 1. Arquivo `.env`
 
-Crie o arquivo `.env` na raiz do projeto com as credenciais de e-mail:
+Copie o arquivo de exemplo e preencha com as credenciais reais:
 
-```env
-SMTP_USER=seu-email@gmail.com
-SMTP_PASS=sua-senha-de-app-gmail
-REPORT_TO=lider@empresa.com,outro@empresa.com
+```bash
+cp .env.example .env
 ```
 
-> **SMTP_PASS** deve ser uma **senha de app** do Google (não a senha da conta).
-> Acesse: Conta Google → Segurança → Verificação em duas etapas → Senhas de app.
->
-> **REPORT_TO** aceita um ou múltiplos endereços separados por vírgula ou ponto-e-vírgula.
+Variáveis necessárias:
+
+| Variável    | Descrição                                                                 | Exemplo                              |
+|-------------|---------------------------------------------------------------------------|--------------------------------------|
+| `SMTP_USER` | Conta Gmail usada para enviar o relatório                                 | `setor@empresa.com`                  |
+| `SMTP_PASS` | **Senha de app** do Google — não a senha da conta¹                       | `xxxx xxxx xxxx xxxx`                |
+| `REPORT_TO` | Destinatário(s) do relatório — separar múltiplos por `,` ou `;`          | `lider@empresa.com,gestor@empresa.com` |
+
+> ¹ Como gerar a senha de app: Conta Google → Segurança → Verificação em duas etapas → **Senhas de app**.
 
 ### 2. Arquivos de dados
 
