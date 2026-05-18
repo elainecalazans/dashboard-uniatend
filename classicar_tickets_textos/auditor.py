@@ -254,7 +254,10 @@ def _ultima_msg_tecnico(historico: list[dict]) -> str:
 
 def _dias_desde(ts) -> int | None:
     try:
-        return (pd.Timestamp.now().normalize() - pd.Timestamp(ts).normalize()).days
+        parsed = pd.to_datetime(ts, dayfirst=True, errors="coerce")
+        if pd.isna(parsed):
+            return None
+        return (pd.Timestamp.now().normalize() - parsed.normalize()).days
     except Exception:
         return None
 
@@ -475,7 +478,7 @@ def gerar_html_report(
             data_ab = tk.get("Data Abertura")
             dias_ab = _dias_desde(data_ab)
             try:
-                data_fmt = pd.Timestamp(data_ab).strftime("%d/%m/%Y")
+                data_fmt = pd.to_datetime(data_ab, dayfirst=True, errors="coerce").strftime("%d/%m/%Y")
                 ab_str = f"Aberto em {data_fmt} ({dias_ab} dias)" if dias_ab is not None else f"Aberto em {data_fmt}"
             except Exception:
                 ab_str = f"Aberto h&aacute; {dias_ab} dias" if dias_ab is not None else ""
