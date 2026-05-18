@@ -120,6 +120,8 @@ def _aplicar_sla(df: pd.DataFrame) -> pd.DataFrame:
     for col in ("SLA Piso", "SLA Teto", "% Consumo SLA", "Status SLA"):
         if col not in df.columns:
             df[col] = np.nan
+    # Garante object dtype para evitar conflito com backend ArrowStringArray (pandas 2.x+)
+    df["Status SLA"] = df["Status SLA"].astype(object)
 
     df["Tempo Gasto (Horas)"] = df["Tempo Gasto"].apply(converter_tempo_para_horas)
 
@@ -130,7 +132,7 @@ def _aplicar_sla(df: pd.DataFrame) -> pd.DataFrame:
     df[["_Eng_Status", "_Eng_Piso", "_Eng_Teto", "_Eng_Consumo", "_Tem_Regra"]] = engine
 
     mask_com_regra = df["_Tem_Regra"] == True
-    df.loc[mask_com_regra, "Status SLA"]     = df.loc[mask_com_regra, "_Eng_Status"]
+    df.loc[mask_com_regra, "Status SLA"]     = df.loc[mask_com_regra, "_Eng_Status"].astype(object)
     df.loc[mask_com_regra, "SLA Piso"]       = df.loc[mask_com_regra, "_Eng_Piso"]
     df.loc[mask_com_regra, "SLA Teto"]       = df.loc[mask_com_regra, "_Eng_Teto"]
     df.loc[mask_com_regra, "% Consumo SLA"]  = df.loc[mask_com_regra, "_Eng_Consumo"]
