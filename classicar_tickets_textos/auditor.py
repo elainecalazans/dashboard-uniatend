@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from html import escape as _esc
 from pathlib import Path
@@ -196,6 +197,18 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
 # ── Geração do report HTML ────────────────────────────────────────────────────
 
 _CONFIG_PATH = Path(__file__).parent.parent / "config.json"
+_ENV_PATH    = Path(__file__).parent.parent / ".env"
+
+
+def _carregar_env() -> None:
+    if not _ENV_PATH.exists():
+        return
+    for linha in _ENV_PATH.read_text(encoding="utf-8").splitlines():
+        linha = linha.strip()
+        if not linha or linha.startswith("#") or "=" not in linha:
+            continue
+        chave, _, valor = linha.partition("=")
+        os.environ.setdefault(chave.strip(), valor.strip())
 
 _SLA_ESTOURO  = "Acima do Teto (Nota: Tempo Corrido Bruto)"
 _SLA_EXCLUIDOS = {"SLA Não Definido", "Sem Registro de Tempo", "Prazo Não Aplicável"}
@@ -577,6 +590,9 @@ def gerar_html_report(
     hoje = pd.Timestamp.now().normalize()
     data_str = hoje.strftime("%d/%m/%Y")
 
+    _carregar_env()
+    dashboard_url = os.environ.get("DASHBOARD_URL", "").strip()
+
     logo_html = "<div class='lb'><span class='lb-txt'>UniATEND</span></div>"
 
     m = _calcular_metricas_mes(df_tickets)
@@ -596,6 +612,12 @@ def gerar_html_report(
         & ~df_audit["Status"].str.strip().str.lower().str.contains("conclu", na=False)
     ].copy()
 
+    link_dashboard = (
+        f"<a href='{dashboard_url}' style='color:#005f5f;font-weight:700;text-decoration:none;'>"
+        f"Acessar o dashboard completo &rarr;</a>&nbsp;&nbsp;|&nbsp;&nbsp;"
+        if dashboard_url else ""
+    )
+
     def _tpl(corpo: str, subtit: str) -> str:
         return (
             "<!DOCTYPE html><html><head><meta charset='utf-8'>"
@@ -608,7 +630,7 @@ def gerar_html_report(
             f"{html_dev}"
             "<div class='sh'><div class='sh-lbl'>Mandamentos do Playbook</div></div>"
             f"<div class='bd'>{corpo}</div>"
-            "<div class='ft'>Gerado automaticamente pelo pipeline UniATEND</div>"
+            f"<div class='ft'>{link_dashboard}Gerado automaticamente pelo pipeline UniATEND</div>"
             "</div></body></html>"
         )
 

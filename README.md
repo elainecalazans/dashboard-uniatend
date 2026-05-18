@@ -63,7 +63,8 @@ Variáveis necessárias:
 |-------------|---------------------------------------------------------------------------|--------------------------------------|
 | `SMTP_USER` | Conta Gmail usada para enviar o relatório                                 | `setor@empresa.com`                  |
 | `SMTP_PASS` | **Senha de app** do Google — não a senha da conta¹                       | `xxxx xxxx xxxx xxxx`                |
-| `REPORT_TO` | Destinatário(s) do relatório — separar múltiplos por `,` ou `;`          | `lider@empresa.com,gestor@empresa.com` |
+| `REPORT_TO`      | Destinatário(s) do relatório — separar múltiplos por `,` ou `;`      | `lider@empresa.com,gestor@empresa.com`   |
+| `DASHBOARD_URL`  | URL do dashboard Streamlit — aparece como link no rodapé do e-mail   | `http://192.168.62.243:8501/`            |
 
 > ¹ Como gerar a senha de app: Conta Google → Segurança → Verificação em duas etapas → **Senhas de app**.
 
