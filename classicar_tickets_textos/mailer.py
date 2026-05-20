@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -7,6 +8,8 @@ from email.mime.text import MIMEText
 from pathlib import Path
 
 import premailer
+
+_CONFIG_PATH = Path(__file__).parent.parent / "config.json"
 
 
 def _carregar_env() -> None:
@@ -46,3 +49,38 @@ def enviar_report(html_body: str, data_str: str) -> None:
         smtp.starttls()
         smtp.login(smtp_user, smtp_pass)
         smtp.sendmail(smtp_user, report_to, msg.as_string())
+
+
+def enviar_reports_individuais(reports: dict[str, str], data_str: str) -> None:
+    _carregar_env()
+
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+
+    if not smtp_user or not smtp_pass:
+        raise ValueError("SMTP_USER e SMTP_PASS precisam estar configurados no .env")
+
+    try:
+        cfg = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+        emails_map = cfg.get("emails_responsaveis", {})
+    except Exception:
+        emails_map = {}
+
+    if not emails_map:
+        return
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.login(smtp_user, smtp_pass)
+
+        for responsavel, html_body in reports.items():
+            email = emails_map.get(responsavel, "").strip()
+            if not email:
+                continue
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = f"Seu Relatório UniATEND — {data_str}"
+            msg["From"]    = smtp_user
+            msg["To"]      = email
+            msg.attach(MIMEText(premailer.transform(html_body), "html", "utf-8"))
+            smtp.sendmail(smtp_user, [email], msg.as_string())

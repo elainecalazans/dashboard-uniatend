@@ -10,10 +10,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from auditor import auditar, gerar_html_report
+from auditor import auditar, gerar_html_report, gerar_html_report_individual
 from classifier import classificar, classificar_causa_raiz
 from data_utils import carregar_tickets, carregar_textos, preparar_textos
-from mailer import enviar_report
+from mailer import enviar_report, enviar_reports_individuais
 from sla_engine import avaliar_sla, converter_tempo_para_horas
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -191,13 +191,25 @@ def main() -> None:
     df_audit.to_excel(AUDIT_PATH, index=False)
     logger.info("Auditoria concluída. %d tickets auditados para %s", len(df_audit), AUDIT_PATH)
 
+    data_str = pd.Timestamp.now().strftime("%d/%m/%Y")
+
     try:
-        data_str = pd.Timestamp.now().strftime("%d/%m/%Y")
         html_body = gerar_html_report(df_audit, df_final, df_textos_raw)
         enviar_report(html_body, data_str)
         logger.info("Report de auditoria enviado por e-mail.")
     except Exception as exc:
         logger.warning("Falha no envio do e-mail: %s", exc)
+
+    try:
+        responsaveis = df_audit["Responsável"].dropna().unique().tolist()
+        reports_individuais = {
+            resp: gerar_html_report_individual(df_audit, df_final, df_textos_raw, resp)
+            for resp in responsaveis
+        }
+        enviar_reports_individuais(reports_individuais, data_str)
+        logger.info("Reports individuais enviados para %d responsáveis.", len(reports_individuais))
+    except Exception as exc:
+        logger.warning("Falha no envio dos reports individuais: %s", exc)
 
 
 if __name__ == "__main__":

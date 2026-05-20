@@ -606,6 +606,57 @@ def _html_desvios(grupos: list[dict], mes_nome: str) -> str:
     )
 
 
+def _montar_df_flag(df_audit: pd.DataFrame, hoje: pd.Timestamp) -> pd.DataFrame:
+    is_concluido = df_audit["Status"].str.strip().str.lower().str.contains("conclu", na=False)
+    mask_abertos = df_audit.apply(_tem_flag, axis=1) & ~is_concluido
+    if "Data Abertura" in df_audit.columns and "Link ClickUp" in df_audit.columns:
+        _datas = pd.to_datetime(df_audit["Data Abertura"], dayfirst=True, errors="coerce")
+        mask_cc = (
+            is_concluido
+            & (_datas.dt.month == hoje.month)
+            & (_datas.dt.year == hoje.year)
+            & (df_audit["Link ClickUp"] == "Ausente")
+        )
+    else:
+        mask_cc = pd.Series(False, index=df_audit.index)
+    return df_audit[mask_abertos | mask_cc].copy()
+
+
+def _montar_ticket_html(row: pd.Series, tk: dict, historico: list[dict]) -> str:
+    tid = str(row["ID"])
+    titulo_raw = str(tk.get("Título", "") or "").strip()
+    header = (
+        f"#{tid} &mdash; {_esc(titulo_raw)}"
+        if titulo_raw and titulo_raw != "nan" else f"#{tid}"
+    )
+    tipo = str(tk.get("Tipo", "") or "").strip()
+    tipo_str = _esc(tipo) if tipo and tipo != "nan" else ""
+    cat = str(row.get("Categoria", "")).strip()
+    sub = str(tk.get("Subcategoria", "") or "").strip()
+    cat_str = f"{_esc(cat)} &rsaquo; {_esc(sub)}" if sub and sub != "nan" else _esc(cat)
+    status = _esc(str(row.get("Status", "")).strip())
+    data_ab = tk.get("Data Abertura")
+    dias_ab = _dias_desde(data_ab)
+    try:
+        data_fmt = pd.to_datetime(data_ab, dayfirst=True, errors="coerce").strftime("%d/%m/%Y")
+        ab_str = f"Aberto em {data_fmt} ({dias_ab} dias)" if dias_ab is not None else f"Aberto em {data_fmt}"
+    except Exception:
+        ab_str = f"Aberto h&aacute; {dias_ab} dias" if dias_ab is not None else ""
+    meta = "&nbsp;&nbsp;|&nbsp;&nbsp;".join(p for p in [tipo_str, cat_str, status, ab_str] if p)
+    flags = _flags_do_ticket(row, tk, historico)
+    flags_html = "".join(f'<span class="f {f["cls"]}">{_esc(f["txt"])}</span>' for f in flags)
+    ultima = _ultima_msg_tecnico(historico)
+    msg_html = f'<div class="um">&ldquo;{_esc(ultima)}&rdquo;</div>' if ultima else ""
+    return (
+        f'<div class="tk">'
+        f'<div class="ti">{header}</div>'
+        f'<div class="tm">{meta}</div>'
+        f'<div>{flags_html}</div>'
+        f'{msg_html}'
+        f'</div>'
+    )
+
+
 def gerar_html_report(
     df_audit: pd.DataFrame,
     df_tickets: pd.DataFrame,
@@ -630,22 +681,7 @@ def gerar_html_report(
     df_tk["ID"] = df_tk["ID"].astype(str).str.strip()
     tk_idx = df_tk.set_index("ID").to_dict("index")
 
-    is_concluido = df_audit["Status"].str.strip().str.lower().str.contains("conclu", na=False)
-
-    mask_abertos = df_audit.apply(_tem_flag, axis=1) & ~is_concluido
-
-    if "Data Abertura" in df_audit.columns and "Link ClickUp" in df_audit.columns:
-        _datas = pd.to_datetime(df_audit["Data Abertura"], dayfirst=True, errors="coerce")
-        mask_concluido_clickup = (
-            is_concluido
-            & (_datas.dt.month == hoje.month)
-            & (_datas.dt.year == hoje.year)
-            & (df_audit["Link ClickUp"] == "Ausente")
-        )
-    else:
-        mask_concluido_clickup = pd.Series(False, index=df_audit.index)
-
-    df_flag = df_audit[mask_abertos | mask_concluido_clickup].copy()
+    df_flag = _montar_df_flag(df_audit, hoje)
 
     cta_dashboard = (
         f"<div style='background:#eef8f8;border-top:1px solid #b2e5e5;"
@@ -686,60 +722,10 @@ def gerar_html_report(
 
     blocos = []
     for resp, grupo in df_flag.groupby("Responsável"):
-        tickets_html = []
-        for _, row in grupo.sort_values("ID").iterrows():
-            tid = str(row["ID"])
-            tk = tk_idx.get(tid, {})
-
-            titulo_raw = str(tk.get("Título", "") or "").strip()
-            header = (
-                f"#{tid} &mdash; {_esc(titulo_raw)}"
-                if titulo_raw and titulo_raw != "nan"
-                else f"#{tid}"
-            )
-
-            tipo = str(tk.get("Tipo", "") or "").strip()
-            tipo_str = _esc(tipo) if tipo and tipo != "nan" else ""
-
-            cat = str(row.get("Categoria", "")).strip()
-            sub = str(tk.get("Subcategoria", "") or "").strip()
-            cat_str = (
-                f"{_esc(cat)} &rsaquo; {_esc(sub)}"
-                if sub and sub != "nan"
-                else _esc(cat)
-            )
-            status = _esc(str(row.get("Status", "")).strip())
-            data_ab = tk.get("Data Abertura")
-            dias_ab = _dias_desde(data_ab)
-            try:
-                data_fmt = pd.to_datetime(data_ab, dayfirst=True, errors="coerce").strftime("%d/%m/%Y")
-                ab_str = f"Aberto em {data_fmt} ({dias_ab} dias)" if dias_ab is not None else f"Aberto em {data_fmt}"
-            except Exception:
-                ab_str = f"Aberto h&aacute; {dias_ab} dias" if dias_ab is not None else ""
-            meta = "&nbsp;&nbsp;|&nbsp;&nbsp;".join(
-                p for p in [tipo_str, cat_str, status, ab_str] if p
-            )
-
-            flags = _flags_do_ticket(row, tk, hist_idx.get(tid, []))
-            flags_html = "".join(
-                f'<span class="f {f["cls"]}">{_esc(f["txt"])}</span>' for f in flags
-            )
-
-            ultima = _ultima_msg_tecnico(hist_idx.get(tid, []))
-            msg_html = (
-                f'<div class="um">&ldquo;{_esc(ultima)}&rdquo;</div>'
-                if ultima else ""
-            )
-
-            tickets_html.append(
-                f'<div class="tk">'
-                f'<div class="ti">{header}</div>'
-                f'<div class="tm">{meta}</div>'
-                f'<div>{flags_html}</div>'
-                f'{msg_html}'
-                f'</div>'
-            )
-
+        tickets_html = [
+            _montar_ticket_html(row, tk_idx.get(str(row["ID"]), {}), hist_idx.get(str(row["ID"]), []))
+            for _, row in grupo.sort_values("ID").iterrows()
+        ]
         n = len(grupo)
         s = "ponto" if n == 1 else "pontos"
         blocos.append(
@@ -755,3 +741,84 @@ def gerar_html_report(
         f"{n_tick} ticket{'s' if n_tick != 1 else ''} com pontos de aten&ccedil;&atilde;o"
     )
     return _tpl("".join(blocos), subtit)
+
+
+def gerar_html_report_individual(
+    df_audit: pd.DataFrame,
+    df_tickets: pd.DataFrame,
+    df_textos_raw: pd.DataFrame,
+    responsavel: str,
+) -> str:
+    hoje = pd.Timestamp.now().normalize()
+    data_str = hoje.strftime("%d/%m/%Y")
+
+    _carregar_env()
+    dashboard_url = os.environ.get("DASHBOARD_URL", "").strip()
+    primeiro = _primeiro_nome(responsavel)
+    mes_nome = f"{_MESES_PT.get(hoje.month, '')}/{hoje.year}"
+
+    logo_html = "<div class='lb'><span class='lb-txt'>UniATEND</span></div>"
+
+    df_audit_r   = df_audit[df_audit["Responsável"] == responsavel].copy()
+    df_tickets_r = df_tickets[df_tickets["Responsável"] == responsavel].copy()
+
+    html_dev = _html_desvios(_calcular_desvios_sla(df_tickets_r), mes_nome)
+
+    df_hist   = consolidar_historico(df_textos_raw)
+    hist_idx  = df_hist.set_index("id_ticket")["historico"].to_dict()
+    df_tk     = df_tickets.copy()
+    df_tk["ID"] = df_tk["ID"].astype(str).str.strip()
+    tk_idx    = df_tk.set_index("ID").to_dict("index")
+
+    df_flag = _montar_df_flag(df_audit_r, hoje)
+
+    cta_dashboard = (
+        f"<div style='background:#eef8f8;border-top:1px solid #b2e5e5;"
+        f"padding:20px 24px;text-align:center;'>"
+        f"<div style='font-size:12px;color:#555;margin-bottom:12px;'>"
+        f"Acesse o dashboard para filtrar por per&iacute;odo, m&oacute;dulo e ver o hist&oacute;rico completo.</div>"
+        f"<a href='{dashboard_url}' style='display:inline-block;background:#005f5f;color:#ffffff;"
+        f"font-weight:700;font-size:13px;text-decoration:none;padding:11px 28px;"
+        f"border-radius:6px;letter-spacing:.3px;'>"
+        f"Acessar o Dashboard &rarr;</a>"
+        f"</div>"
+        if dashboard_url else ""
+    )
+
+    def _tpl(corpo: str, subtit: str) -> str:
+        return (
+            "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+            f"<style>{_CSS}</style></head><body>"
+            "<div class='w'>"
+            f"{logo_html}"
+            "<div class='hd'><h1>Auditoria UniATEND</h1>"
+            f"<p>{data_str} &nbsp;&middot;&nbsp; {subtit}</p></div>"
+            f"{html_dev}"
+            "<div class='sh'><div class='sh-lbl'>Mandamentos do Playbook</div></div>"
+            f"<div class='bd'>{corpo}</div>"
+            f"{cta_dashboard}"
+            "<div class='ft'>Gerado automaticamente pelo pipeline UniATEND</div>"
+            "</div></body></html>"
+        )
+
+    if df_flag.empty:
+        return _tpl(
+            f"<p style='color:#27ae60;padding:12px;font-size:14px'>"
+            f"Ol&aacute;, {_esc(primeiro)}! Nenhum desvio de atendimento para tratar hoje. "
+            f"Parab&eacute;ns pelo trabalho!</p>",
+            f"Ol&aacute;, {_esc(primeiro)}! &nbsp;&middot;&nbsp; Tudo em dia",
+        )
+
+    tickets_html = [
+        _montar_ticket_html(row, tk_idx.get(str(row["ID"]), {}), hist_idx.get(str(row["ID"]), []))
+        for _, row in df_flag.sort_values("ID").iterrows()
+    ]
+    n = len(df_flag)
+    s = "ponto" if n == 1 else "pontos"
+    corpo = (
+        f'<div class="rt">Seus tickets com pontos de aten&ccedil;&atilde;o'
+        f' <span class="rc">— {data_str}</span></div>'
+        + "".join(tickets_html)
+    )
+    subtit = f"Ol&aacute;, {_esc(primeiro)}! &nbsp;&middot;&nbsp; {n} {s} de aten&ccedil;&atilde;o"
+    return _tpl(corpo, subtit)
