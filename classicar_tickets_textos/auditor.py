@@ -215,6 +215,50 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
     )
 
 
+def auditar_conformidade_mensal(
+    df_audit: pd.DataFrame,
+) -> tuple[pd.DataFrame, float | None, int, int]:
+    """
+    Retorna (df_resultado, pct_conformidade, n_total, n_conforme).
+    Base: tickets concluídos no mês atual.
+    FRT 'Sem dados' / 'Abertura Administrativa' → critério neutro (Opção A).
+    """
+    hoje = pd.Timestamp.now()
+
+    is_concluido = df_audit["Status"].str.strip().str.lower().str.contains("conclu", na=False)
+    _datas = pd.to_datetime(
+        df_audit.get("Data Abertura", pd.Series(dtype=str)), dayfirst=True, errors="coerce"
+    )
+    is_mes = (_datas.dt.month == hoje.month) & (_datas.dt.year == hoje.year)
+
+    df_mes = df_audit[is_concluido & is_mes].copy()
+    if df_mes.empty:
+        return df_mes, None, 0, 0
+
+    def _avaliar(row: pd.Series) -> list[str]:
+        falhas = []
+        if str(row.get("FRT OK", "")).strip() == "Não":
+            falhas.append("FRT > 2h")
+        if row.get("Risco Zumbi") == "Sim":
+            falhas.append("Risco Zumbi")
+        if row.get("Resolução Genérica") == "Sim":
+            falhas.append("Resolução Genérica")
+        if row.get("Link ClickUp") == "Ausente":
+            falhas.append("Link ClickUp ausente")
+        return falhas
+
+    df_mes["_falhas"] = df_mes.apply(_avaliar, axis=1)
+    df_mes["Conforme"] = df_mes["_falhas"].apply(lambda f: "Sim" if not f else "Não")
+    df_mes["Critérios Reprovados"] = df_mes["_falhas"].apply(lambda f: ", ".join(f) if f else "—")
+    df_mes = df_mes.drop(columns=["_falhas"])
+
+    n_total = len(df_mes)
+    n_conforme = int((df_mes["Conforme"] == "Sim").sum())
+    pct = n_conforme / n_total if n_total > 0 else None
+
+    return df_mes.sort_values(["Responsável", "ID"]).reset_index(drop=True), pct, n_total, n_conforme
+
+
 # ── Geração do report HTML ────────────────────────────────────────────────────
 
 _CONFIG_PATH = Path(__file__).parent.parent / "config.json"
@@ -357,7 +401,10 @@ def _tem_flag(row: pd.Series) -> bool:
     )
 
 
-def _calcular_metricas_mes(df_tickets: pd.DataFrame) -> dict:
+def _calcular_metricas_mes(
+    df_tickets: pd.DataFrame,
+    df_audit: pd.DataFrame | None = None,
+) -> dict:
     hoje = pd.Timestamp.now()
     df = df_tickets.copy()
     if "Data Abertura" in df.columns:
@@ -391,11 +438,25 @@ def _calcular_metricas_mes(df_tickets: pd.DataFrame) -> dict:
             (concluidos["Causa Raíz"].notna() & (concluidos["Causa Raíz"].astype(str).str.strip() != "")).mean()
         )
 
+    pct_conf, n_conf, n_tot_conf = None, 0, 0
+    if df_audit is not None:
+        _, pct_conf, n_tot_conf, n_conf = auditar_conformidade_mensal(df_audit)
+
+    pct_melhoria = None
+    if "Tipo" in df_mes.columns and len(df_mes) > 0:
+        pct_melhoria = float(
+            (df_mes["Tipo"].str.strip().str.lower() == "melhoria").sum()
+        ) / len(df_mes)
+
     return {
         "pct_fora_prazo": pct_fora,
         "meta_mes": meta_mes,
         "baseline": baseline,
         "pct_causa_raiz": pct_causa,
+        "pct_conformidade": pct_conf,
+        "n_conformes": n_conf,
+        "n_total_conf": n_tot_conf,
+        "pct_melhoria": pct_melhoria,
         "mes_nome": f"{_MESES_PT.get(hoje.month, '')}/{hoje.year}",
         "n_concluidos_mes": len(concluidos),
         "n_tickets_mes": len(df_mes),
@@ -445,17 +506,47 @@ def _html_metricas(m: dict) -> str:
         v3, s3 = '<span style="color:#bbb">&mdash;</span>', "sem dados"
     m3 = "Meta: 100%"
 
+    # Card 4 — Conformidade
+    pct_conf = m.get("pct_conformidade")
+    if pct_conf is not None:
+        cor4 = "ok" if pct_conf >= 0.90 else ("nk" if pct_conf < 0.70 else "")
+        v4 = f'<span{"" if not cor4 else f" class=\'{cor4}\'"}">{pct_conf * 100:.1f}%</span>'
+        n_conf = m.get("n_conformes", 0)
+        n_tot  = m.get("n_total_conf", 0)
+        s4 = f'{n_conf}/{n_tot} conclu&iacute;dos'
+    else:
+        v4, s4 = '<span style="color:#bbb">&mdash;</span>', "sem dados"
+    m4 = "Meta: &ge;&nbsp;90%"
+
+    # Card 5 — % Melhorias
+    pct_mel = m.get("pct_melhoria")
+    if pct_mel is not None:
+        v5 = f'{pct_mel * 100:.1f}%'
+        s5 = f'{m["n_tickets_mes"]} tickets no m&ecirc;s'
+    else:
+        v5, s5 = '<span style="color:#bbb">&mdash;</span>', "sem dados"
+    m5 = "Acompanhamento"
+
     titulo = f"M&eacute;tricas do M&ecirc;s &mdash; {_esc(m['mes_nome'])}"
     return (
         f"<div class='ms'><div class='ms-t'>{titulo}</div>"
-        f"<table width='100%' cellspacing='0' cellpadding='0'><tr>"
-        f"<td style='width:32%;padding-right:5px;vertical-align:top'>"
+        f"<table width='100%' cellspacing='0' cellpadding='0'>"
+        f"<tr>"
+        f"<td style='width:32%;padding-right:5px;vertical-align:top;padding-bottom:6px'>"
         f"{_card('Fora do Prazo', v1, m1, s1)}</td>"
-        f"<td style='width:32%;padding:0 5px;vertical-align:top'>"
+        f"<td style='width:32%;padding:0 5px;vertical-align:top;padding-bottom:6px'>"
         f"{_card('Margem Dispon&iacute;vel', v2, m2, s2)}</td>"
-        f"<td style='width:32%;padding-left:5px;vertical-align:top'>"
+        f"<td style='width:32%;padding-left:5px;vertical-align:top;padding-bottom:6px'>"
+        f"{_card('Conformidade', v4, m4, s4)}</td>"
+        f"</tr>"
+        f"<tr>"
+        f"<td style='width:32%;padding-right:5px;vertical-align:top'>"
         f"{_card('Causa Ra&iacute;z', v3, m3, s3)}</td>"
-        f"</tr></table></div>"
+        f"<td style='width:32%;padding:0 5px;vertical-align:top'>"
+        f"{_card('Melhorias', v5, m5, s5)}</td>"
+        f"<td style='width:32%;vertical-align:top'></td>"
+        f"</tr>"
+        f"</table></div>"
     )
 
 
@@ -670,7 +761,7 @@ def gerar_html_report(
 
     logo_html = "<div class='lb'><span class='lb-txt'>UniATEND</span></div>"
 
-    m = _calcular_metricas_mes(df_tickets)
+    m = _calcular_metricas_mes(df_tickets, df_audit)
     html_met = _html_metricas(m)
     html_dev = _html_desvios(_calcular_desvios_sla(df_tickets), m["mes_nome"])
 
@@ -822,3 +913,142 @@ def gerar_html_report_individual(
     )
     subtit = f"Ol&aacute;, {_esc(primeiro)}! &nbsp;&middot;&nbsp; {n} {s} de aten&ccedil;&atilde;o"
     return _tpl(corpo, subtit)
+
+
+def gerar_html_report_conformidade(
+    df_conf: pd.DataFrame,
+    pct: float,
+    n_total: int,
+    n_conforme: int,
+) -> str:
+    _carregar_env()
+    hoje = pd.Timestamp.now()
+    data_str = hoje.strftime("%d/%m/%Y")
+    mes_nome = f"{_MESES_PT.get(hoje.month, '')}/{hoje.year}"
+    dashboard_url = os.environ.get("DASHBOARD_URL", "").strip()
+
+    cor_geral = "ok" if pct >= 0.90 else ("nk" if pct < 0.70 else "")
+    pct_str = f'<span{"" if not cor_geral else f" class=\'{cor_geral}\'"}">{pct * 100:.1f}%</span>'
+
+    card_geral = (
+        f"<div class='ms'>"
+        f"<table width='100%' cellspacing='0' cellpadding='0'><tr>"
+        f"<td style='width:32%;padding-right:5px;vertical-align:top'>"
+        f"<div class='ms-c'><div class='ms-l'>Conformidade Geral</div>"
+        f"<div class='ms-v'>{pct_str}</div>"
+        f"<div class='ms-m'>Meta: &ge;&nbsp;90%</div>"
+        f"<div class='ms-s'>{n_conforme}/{n_total} tickets conformes</div></div></td>"
+        f"<td style='width:32%;padding:0 5px;vertical-align:top'>"
+        f"<div class='ms-c'><div class='ms-l'>N&atilde;o Conformes</div>"
+        f"<div class='ms-v'><span class='{'nk' if (n_total - n_conforme) > 0 else 'ok'}'>"
+        f"{n_total - n_conforme}</span></div>"
+        f"<div class='ms-m'>&nbsp;</div>"
+        f"<div class='ms-s'>{n_total} tickets conclu&iacute;dos no m&ecirc;s</div></div></td>"
+        f"<td style='width:32%;padding-left:5px;vertical-align:top'></td>"
+        f"</tr></table></div>"
+    )
+
+    # Breakdown por responsável
+    resumo = []
+    for resp, grp in df_conf.groupby("Responsável"):
+        total_r = len(grp)
+        conf_r = int((grp["Conforme"] == "Sim").sum())
+        pct_r = conf_r / total_r if total_r > 0 else 0.0
+        resumo.append({"resp": str(resp), "conf": conf_r, "total": total_r, "pct": pct_r})
+    resumo.sort(key=lambda r: r["pct"])
+
+    linhas_resumo = []
+    for r in resumo:
+        cor_r = "ok" if r["pct"] >= 0.90 else ("nk" if r["pct"] < 0.70 else "")
+        pct_r_str = f'<span{"" if not cor_r else f" class=\'{cor_r}\'"}">{r["pct"] * 100:.1f}%</span>'
+        linhas_resumo.append(
+            f"<tr style='border-bottom:1px solid #f0f0f0'>"
+            f"<td style='padding:7px 10px;font-size:13px;color:#1f2937'>{_esc(r['resp'])}</td>"
+            f"<td style='padding:7px 10px;text-align:center;font-size:13px'>{r['conf']}/{r['total']}</td>"
+            f"<td style='padding:7px 10px;text-align:center;font-weight:700'>{pct_r_str}</td>"
+            f"</tr>"
+        )
+
+    tabela_resumo = (
+        f"<div class='sh'><div class='sh-lbl'>Resultado por Respons&aacute;vel</div></div>"
+        f"<div class='dv'>"
+        f"<table width='100%' cellspacing='0' cellpadding='0' "
+        f"style='border-collapse:collapse;border:1px solid #e8e8e8;border-radius:6px;overflow:hidden'>"
+        f"<tr style='background:#f8fffe'>"
+        f"<th style='padding:7px 10px;text-align:left;font-size:11px;font-weight:700;"
+        f"text-transform:uppercase;color:#005f5f;letter-spacing:.4px'>Respons&aacute;vel</th>"
+        f"<th style='padding:7px 10px;text-align:center;font-size:11px;font-weight:700;"
+        f"text-transform:uppercase;color:#005f5f;letter-spacing:.4px'>Conformes / Total</th>"
+        f"<th style='padding:7px 10px;text-align:center;font-size:11px;font-weight:700;"
+        f"text-transform:uppercase;color:#005f5f;letter-spacing:.4px'>%</th>"
+        f"</tr>"
+        + "".join(linhas_resumo)
+        + f"</table></div>"
+    )
+
+    # Tickets não-conformes por responsável
+    df_nao = df_conf[df_conf["Conforme"] == "Não"].copy()
+    blocos_nao = []
+    for resp, grp in df_nao.groupby("Responsável"):
+        tickets_html = []
+        for _, row in grp.sort_values("ID").iterrows():
+            tid = _esc(str(row["ID"]))
+            criterios = str(row.get("Critérios Reprovados", "")).strip()
+            cat = _esc(str(row.get("Categoria", "")).strip())
+            status = _esc(str(row.get("Status", "")).strip())
+            data_ab = row.get("Data Abertura")
+            try:
+                data_fmt = pd.to_datetime(data_ab, dayfirst=True, errors="coerce").strftime("%d/%m/%Y")
+            except Exception:
+                data_fmt = ""
+            meta = "&nbsp;&nbsp;|&nbsp;&nbsp;".join(p for p in [cat, status, data_fmt] if p)
+            flags_html = "".join(
+                f'<span class="f fc">{_esc(c.strip())}</span>'
+                for c in criterios.split(",") if c.strip() and c.strip() != "—"
+            )
+            tickets_html.append(
+                f'<div class="tk">'
+                f'<div class="ti">#{tid}</div>'
+                f'<div class="tm">{meta}</div>'
+                f'<div>{flags_html}</div>'
+                f'</div>'
+            )
+        n_r = len(grp)
+        s_r = "ticket" if n_r == 1 else "tickets"
+        blocos_nao.append(
+            f'<div class="rt">{_esc(str(resp))}'
+            f' <span class="rc">— {n_r} {s_r} n&atilde;o conforme{"s" if n_r != 1 else ""}</span></div>'
+            + "".join(tickets_html)
+        )
+
+    secao_nao = (
+        f"<div class='sh'><div class='sh-lbl'>Tickets N&atilde;o Conformes</div></div>"
+        f"<div class='bd'>{''.join(blocos_nao)}</div>"
+        if blocos_nao else ""
+    )
+
+    cta = (
+        f"<div style='background:#eef8f8;border-top:1px solid #b2e5e5;"
+        f"padding:20px 24px;text-align:center;'>"
+        f"<div style='font-size:12px;color:#555;margin-bottom:12px;'>"
+        f"Acesse o dashboard para o hist&oacute;rico completo de conformidade.</div>"
+        f"<a href='{dashboard_url}' style='display:inline-block;background:#005f5f;color:#ffffff;"
+        f"font-weight:700;font-size:13px;text-decoration:none;padding:11px 28px;"
+        f"border-radius:6px;letter-spacing:.3px;'>Acessar o Dashboard &rarr;</a></div>"
+        if dashboard_url else ""
+    )
+
+    return (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        f"<style>{_CSS}</style></head><body>"
+        "<div class='w'>"
+        "<div class='lb'><span class='lb-txt'>UniATEND</span></div>"
+        "<div class='hd'><h1>Auditoria Mensal de Conformidade</h1>"
+        f"<p>{data_str} &nbsp;&middot;&nbsp; {_esc(mes_nome)}</p></div>"
+        f"{card_geral}"
+        f"{tabela_resumo}"
+        f"{secao_nao}"
+        f"{cta}"
+        "<div class='ft'>Gerado automaticamente pelo pipeline UniATEND</div>"
+        "</div></body></html>"
+    )

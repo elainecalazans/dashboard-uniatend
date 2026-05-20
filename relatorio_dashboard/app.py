@@ -5,7 +5,7 @@ import streamlit as st
 
 from charts import create_causa_raiz_chart, create_sla_trend_chart
 from config import EXCEL_PATH, SLA_STATUS_EXCLUIDOS
-from data_loader import get_excel_mtime, get_logo_base64, load_css, load_data, load_sla_rules
+from data_loader import get_audit_mtime, get_excel_mtime, get_logo_base64, load_audit_data, load_css, load_data, load_sla_rules
 from tables import build_audit_table, build_consolidated_table
 from ui_components import render_kpis, render_meta_cards, render_sla_rules
 
@@ -28,6 +28,8 @@ REGRAS_SLA = load_sla_rules()
 df = load_data(get_excel_mtime())
 if df.empty:
     st.stop()
+
+df_audit = load_audit_data(get_audit_mtime())
 
 # ── Sidebar ─────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -111,6 +113,13 @@ def _mask(inicio, fim):
 df_atual = df[_mask(data_inicio, data_fim)].copy()
 df_prev  = df[_mask(data_inicio_prev.date(), data_fim_prev.date())].copy()
 
+df_audit_atual = pd.DataFrame()
+if not df_audit.empty and "Data Abertura" in df_audit.columns:
+    df_audit_atual = df_audit[
+        (df_audit["Data Abertura"].dt.date >= data_inicio)
+        & (df_audit["Data Abertura"].dt.date <= data_fim)
+    ].copy()
+
 if df_atual.empty:
     st.warning("Nenhum dado encontrado no período selecionado.")
     st.stop()
@@ -139,7 +148,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 # ── KPIs ────────────────────────────────────────────────────────────────
 with st.container(border=True):
-    render_kpis(df_atual, df_prev, status_concluido, data_fim.month, texto_comp)
+    render_kpis(df_atual, df_prev, status_concluido, data_fim.month, texto_comp, df_audit_atual)
 
 st.markdown("<br>", unsafe_allow_html=True)
 

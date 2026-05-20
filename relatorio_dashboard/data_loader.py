@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from config import EXCEL_PATH, LOGO_PATH, SLA_RULES_PATH, CSS_PATH, SLA_STATUS_LABELS
+from config import AUDIT_PATH, EXCEL_PATH, LOGO_PATH, SLA_RULES_PATH, CSS_PATH, SLA_STATUS_LABELS
 
 logger = logging.getLogger(__name__)
 
@@ -74,3 +74,21 @@ def load_data(file_mtime: float) -> pd.DataFrame:
 
 def get_excel_mtime() -> float:
     return EXCEL_PATH.stat().st_mtime if EXCEL_PATH.exists() else 0.0
+
+
+@st.cache_data
+def load_audit_data(file_mtime: float) -> pd.DataFrame:
+    if not AUDIT_PATH.exists():
+        return pd.DataFrame()
+    try:
+        df = pd.read_excel(AUDIT_PATH)
+        if "Data Abertura" in df.columns:
+            df["Data Abertura"] = pd.to_datetime(df["Data Abertura"], dayfirst=True, errors="coerce")
+        return df
+    except Exception as exc:
+        logger.warning("Erro ao carregar relatorio_auditoria.xlsx: %s", exc)
+        return pd.DataFrame()
+
+
+def get_audit_mtime() -> float:
+    return AUDIT_PATH.stat().st_mtime if AUDIT_PATH.exists() else 0.0

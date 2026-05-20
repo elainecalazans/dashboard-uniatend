@@ -51,6 +51,32 @@ def enviar_report(html_body: str, data_str: str) -> None:
         smtp.sendmail(smtp_user, report_to, msg.as_string())
 
 
+def enviar_report_conformidade(html_body: str, mes_str: str) -> None:
+    _carregar_env()
+
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    report_to_raw = os.environ.get("REPORT_TO", "")
+    report_to = [addr.strip() for addr in report_to_raw.replace(";", ",").split(",") if addr.strip()]
+
+    if not smtp_user or not smtp_pass:
+        raise ValueError("SMTP_USER e SMTP_PASS precisam estar configurados no .env")
+    if not report_to:
+        raise ValueError("REPORT_TO não contém nenhum endereço válido")
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"Auditoria Mensal UniATEND — {mes_str}"
+    msg["From"] = smtp_user
+    msg["To"] = ", ".join(report_to)
+    msg.attach(MIMEText(premailer.transform(html_body), "html", "utf-8"))
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.login(smtp_user, smtp_pass)
+        smtp.sendmail(smtp_user, report_to, msg.as_string())
+
+
 def enviar_reports_individuais(reports: dict[str, str], data_str: str) -> None:
     _carregar_env()
 

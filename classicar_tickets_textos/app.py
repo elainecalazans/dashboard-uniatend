@@ -4,16 +4,20 @@ Uso: python app.py
 """
 from __future__ import annotations
 
+import argparse
 import logging
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from auditor import auditar, gerar_html_report, gerar_html_report_individual
+from auditor import (
+    auditar, auditar_conformidade_mensal,
+    gerar_html_report, gerar_html_report_conformidade, gerar_html_report_individual,
+)
 from classifier import classificar, classificar_causa_raiz
 from data_utils import carregar_tickets, carregar_textos, preparar_textos
-from mailer import enviar_report, enviar_reports_individuais
+from mailer import enviar_report, enviar_report_conformidade, enviar_reports_individuais
 from sla_engine import avaliar_sla, converter_tempo_para_horas
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -167,7 +171,21 @@ def _aplicar_sla(df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(columns=["_Eng_Status", "_Eng_Piso", "_Eng_Teto", "_Eng_Consumo", "_Tem_Regra"])
 
 
+ENVIO_EMAIL_ATIVO = True
+
+
+def _parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Pipeline UniATEND")
+    p.add_argument(
+        "--auditoria-mensal",
+        action="store_true",
+        help="Gera relatório de conformidade mensal (tickets concluídos no mês)",
+    )
+    return p.parse_args()
+
+
 def main() -> None:
+    args = _parse_args()
     logger.info("Iniciando pipeline de classificação...")
 
     df_textos_raw = carregar_textos()
@@ -193,23 +211,49 @@ def main() -> None:
 
     data_str = pd.Timestamp.now().strftime("%d/%m/%Y")
 
-    try:
-        html_body = gerar_html_report(df_audit, df_final, df_textos_raw)
-        enviar_report(html_body, data_str)
-        logger.info("Report de auditoria enviado por e-mail.")
-    except Exception as exc:
-        logger.warning("Falha no envio do e-mail: %s", exc)
+    if ENVIO_EMAIL_ATIVO:
+        try:
+            html_body = gerar_html_report(df_audit, df_final, df_textos_raw)
+            enviar_report(html_body, data_str)
+            logger.info("Report de auditoria enviado por e-mail.")
+        except Exception as exc:
+            logger.warning("Falha no envio do e-mail: %s", exc)
 
-    try:
-        responsaveis = df_audit["Responsável"].dropna().unique().tolist()
-        reports_individuais = {
-            resp: gerar_html_report_individual(df_audit, df_final, df_textos_raw, resp)
-            for resp in responsaveis
-        }
-        enviar_reports_individuais(reports_individuais, data_str)
-        logger.info("Reports individuais enviados para %d responsáveis.", len(reports_individuais))
-    except Exception as exc:
-        logger.warning("Falha no envio dos reports individuais: %s", exc)
+        try:
+            responsaveis = df_audit["Responsável"].dropna().unique().tolist()
+            reports_individuais = {
+                resp: gerar_html_report_individual(df_audit, df_final, df_textos_raw, resp)
+                for resp in responsaveis
+            }
+            enviar_reports_individuais(reports_individuais, data_str)
+            logger.info("Reports individuais enviados para %d responsáveis.", len(reports_individuais))
+        except Exception as exc:
+            logger.warning("Falha no envio dos reports individuais: %s", exc)
+    else:
+        logger.info("Envio de e-mail desativado (ENVIO_EMAIL_ATIVO = False).")
+
+    if args.auditoria_mensal:
+        mes_str = pd.Timestamp.now().strftime("%Y_%m")
+        mes_exib = mes_str.replace("_", "/")
+        conf_path = _BASE.parent / "relatorio_dashboard" / f"relatorio_conformidade_{mes_str}.xlsx"
+        df_conf, pct, n_total, n_conforme = auditar_conformidade_mensal(df_audit)
+        if pct is not None:
+            df_conf.to_excel(conf_path, index=False)
+            logger.info(
+                "Conformidade %s: %.1f%% (%d/%d conformes). Salvo em %s",
+                mes_exib, pct * 100, n_conforme, n_total, conf_path,
+            )
+            if ENVIO_EMAIL_ATIVO:
+                try:
+                    html_conf = gerar_html_report_conformidade(df_conf, pct, n_total, n_conforme)
+                    enviar_report_conformidade(html_conf, mes_exib)
+                    logger.info("Report de conformidade mensal enviado por e-mail.")
+                except Exception as exc:
+                    logger.warning("Falha no envio do report de conformidade: %s", exc)
+            else:
+                logger.info("Envio de e-mail desativado (ENVIO_EMAIL_ATIVO = False).")
+        else:
+            logger.info("Auditoria mensal: sem tickets concluídos no mês %s.", mes_exib)
 
 
 if __name__ == "__main__":

@@ -9,12 +9,40 @@ from config import (
 )
 
 
+def calcular_conformidade(
+    df_audit: pd.DataFrame,
+    status_concluido: list[str],
+) -> tuple[float | None, int, int]:
+    if df_audit.empty:
+        return None, 0, 0
+    is_concluido = df_audit["Status"].isin(status_concluido) if "Status" in df_audit.columns else pd.Series(False, index=df_audit.index)
+    df_c = df_audit[is_concluido].copy()
+    if df_c.empty:
+        return None, 0, 0
+
+    def _avaliar(row: pd.Series) -> bool:
+        if str(row.get("FRT OK", "")).strip() == "Não":
+            return False
+        if row.get("Risco Zumbi") == "Sim":
+            return False
+        if row.get("Resolução Genérica") == "Sim":
+            return False
+        if row.get("Link ClickUp") == "Ausente":
+            return False
+        return True
+
+    conformes = df_c.apply(_avaliar, axis=1)
+    n_total = len(df_c)
+    n_conf = int(conformes.sum())
+    return n_conf / n_total, n_conf, n_total
+
+
 def calcular_kpis(
     dados: pd.DataFrame,
     status_concluido: list[str],
-) -> tuple[int, float, float]:
+) -> tuple[int, float, float, float]:
     if dados.empty:
-        return 0, 0.0, 0.0
+        return 0, 0.0, 0.0, 0.0
 
     vol = len(dados)
     concluidos = dados[dados["Status"].isin(status_concluido)]
@@ -28,7 +56,11 @@ def calcular_kpis(
         if "Causa_Raiz_Preenchida" in concluidos.columns and len(concluidos) > 0
         else 0.0
     )
-    return vol, pct_estouro, tx_causa
+    pct_melhoria = (
+        float((dados["Tipo"].str.strip().str.lower() == "melhoria").sum()) / vol
+        if "Tipo" in dados.columns and vol > 0 else 0.0
+    )
+    return vol, pct_estouro, tx_causa, pct_melhoria
 
 
 def render_kpis(
@@ -37,12 +69,17 @@ def render_kpis(
     status_concluido: list[str],
     mes_fim: int,
     texto_comparativo: str,
+    df_audit: pd.DataFrame | None = None,
 ) -> None:
-    vol_at, pct_at, causa_at = calcular_kpis(df_atual, status_concluido)
-    vol_pr, pct_pr, causa_pr = calcular_kpis(df_prev, status_concluido)
+    vol_at, pct_at, causa_at, mel_at = calcular_kpis(df_atual, status_concluido)
+    vol_pr, pct_pr, causa_pr, mel_pr = calcular_kpis(df_prev, status_concluido)
     meta_num = METAS_SLA_MENSAL.get(mes_fim)
 
-    col1, col2, col3, col4 = st.columns(4)
+    pct_conf, n_conf, n_tot_conf = calcular_conformidade(
+        df_audit if df_audit is not None else pd.DataFrame(), status_concluido
+    )
+
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     col1.metric(
         "Volume de Tickets",
@@ -84,6 +121,30 @@ def render_kpis(
         delta=f"{delta_causa:.1f}% {texto_comparativo}",
         delta_color="off" if causa_at == 0 else "normal",
         help="Proporção de tickets com campo 'Causa Raíz' preenchido.",
+    )
+
+    if pct_conf is not None:
+        col5.metric(
+            "Conformidade de Registro",
+            f"{pct_conf*100:.1f}%",
+            delta=f"Meta: ≥ 90% — {n_conf}/{n_tot_conf} conformes",
+            delta_color="normal" if pct_conf >= 0.90 else "inverse",
+            help="% de tickets concluídos no período que passaram em todos os critérios de qualidade de registro.",
+        )
+    else:
+        col5.metric(
+            "Conformidade de Registro",
+            "—",
+            help="Execute o pipeline para calcular a conformidade de registro.",
+        )
+
+    delta_mel = (mel_at - mel_pr) * 100
+    col6.metric(
+        "% Melhorias",
+        f"{mel_at*100:.1f}%",
+        delta=f"{delta_mel:.1f}% {texto_comparativo}",
+        delta_color="off",
+        help="Proporção de tickets classificados como Melhoria sobre o total do período.",
     )
 
     if causa_at == 0:

@@ -7,6 +7,7 @@ BASE_DIR = Path(__file__).parent
 ROOT_DIR = BASE_DIR.parent
 
 EXCEL_PATH = BASE_DIR / "relatorio_classificado.xlsx"
+AUDIT_PATH = BASE_DIR / "relatorio_auditoria.xlsx"
 LOGO_PATH = BASE_DIR / "1775153144791_image.png"
 SLA_RULES_PATH = ROOT_DIR / "sla_rules.json"
 CONFIG_PATH = ROOT_DIR / "config.json"
