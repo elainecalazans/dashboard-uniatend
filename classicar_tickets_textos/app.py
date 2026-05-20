@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 
 from auditor import auditar, gerar_html_report
-from classifier import classificar
+from classifier import classificar, classificar_causa_raiz
 from data_utils import carregar_tickets, carregar_textos, preparar_textos
 from mailer import enviar_report
 from sla_engine import avaliar_sla, converter_tempo_para_horas
@@ -118,6 +118,23 @@ def _aplicar_incremental(df_base: pd.DataFrame) -> pd.DataFrame:
         return _classificar_tudo(df_base)
 
 
+def _aplicar_causa_raiz(df: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFrame:
+    from text_cleaner import consolidar_historico
+    df_hist = consolidar_historico(df_textos_raw)
+    hist_idx = df_hist.set_index("id_ticket")["historico"].to_dict()
+
+    for idx, row in df.iterrows():
+        if str(row.get("Causa Raíz", "")).strip() not in ("", "nan"):
+            continue
+        historico = hist_idx.get(str(row["ID"]), [])
+        msgs_tecnico = [h for h in historico if h["papel"] == "tecnico"]
+        causa = classificar_causa_raiz(msgs_tecnico)
+        if causa:
+            df.at[idx, "Causa Raíz"] = causa
+
+    return df
+
+
 def _aplicar_sla(df: pd.DataFrame) -> pd.DataFrame:
     for col in ("SLA Piso", "SLA Teto", "% Consumo SLA", "Status SLA"):
         if col not in df.columns:
@@ -157,6 +174,7 @@ def main() -> None:
 
     df_base = _montar_base()
     df = _aplicar_incremental(df_base)
+    df = _aplicar_causa_raiz(df, df_textos_raw)
     df = _aplicar_sla(df)
 
     if "Status" in df.columns:

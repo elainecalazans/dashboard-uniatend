@@ -36,12 +36,44 @@ REGRAS: list[dict] = [
 ]
 
 
+REGRAS_CAUSA_RAIZ: list[dict] = [
+    {
+        "label": "Coleta Saídas sem AutXML - Parametrização ERP Cliente",
+        "required": ["autxml"],
+        "exclude": [],
+    },
+    {
+        "label": "Entradas - Consumo Indevido - Parâmetro de Coletas = Integral",
+        "required": ["consumo indevido", "configuramos", "periodo noturno"],
+        "exclude": ["certificado digital"],
+    },
+    {
+        "label": "Entradas - Consumo Indevido - Parâmetro de Coletas = Noturno",
+        "required": ["consumo indevido", "certificado digital"],
+        "exclude": [],
+    },
+]
+
+
 def limpar_texto(texto: str) -> str:
     texto = str(texto).lower()
     texto = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("utf-8")
     texto = re.sub(r"[^\w\s]", " ", texto)
     texto = re.sub(r"\s+", " ", texto).strip()
     return texto
+
+
+def classificar_causa_raiz(msgs_tecnico: list[dict]) -> str:
+    if not msgs_tecnico:
+        return ""
+    texto_limpo = limpar_texto(" ".join(h["texto"] for h in msgs_tecnico))
+    for regra in REGRAS_CAUSA_RAIZ:
+        if (
+            all(kw in texto_limpo for kw in regra["required"])
+            and not any(ex in texto_limpo for ex in regra["exclude"])
+        ):
+            return regra["label"]
+    return ""
 
 
 def classificar(texto: str, modulo: str) -> tuple[str, str]:
