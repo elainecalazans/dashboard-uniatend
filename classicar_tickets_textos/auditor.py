@@ -119,16 +119,27 @@ def _calcular_max_gap_zumbi(historico: list[dict], status: str) -> float | None:
 def _resolucao_generica(msgs_tecnico: list[dict]) -> bool:
     if not msgs_tecnico:
         return False
-    ultima = msgs_tecnico[-1]["texto"].strip()
-    sem_saudacao = _SAUDACAO_RE.sub("", ultima).strip()
-    sem_fechamento = _FECHAMENTO_RE.sub("", sem_saudacao).strip()
-    if not sem_fechamento:
-        return True
-    if _SALVO_RE.search(sem_fechamento):
+
+    def _e_generica(texto: str) -> bool:
+        texto = texto.strip()
+        sem_saudacao = _SAUDACAO_RE.sub("", texto).strip()
+        sem_fechamento = _FECHAMENTO_RE.sub("", sem_saudacao).strip()
+        if not sem_fechamento:
+            return True
+        if _SALVO_RE.search(sem_fechamento):
+            return False
+        if len(sem_fechamento) > 120:
+            return False
+        return bool(_GENERICA_RE.search(sem_fechamento))
+
+    if not _e_generica(msgs_tecnico[-1]["texto"]):
         return False
-    if len(sem_fechamento) > 120:
+
+    # Última mensagem é genérica — penúltima pode conter o conteúdo real
+    if len(msgs_tecnico) >= 2 and not _e_generica(msgs_tecnico[-2]["texto"]):
         return False
-    return bool(_GENERICA_RE.search(sem_fechamento))
+
+    return True
 
 
 def _regra_24_dias(ultima_atualizacao, categoria: str, status: str, tipo: str = "") -> str:
