@@ -19,9 +19,12 @@ def _contar_linhas(path: Path) -> int:
 def carregar_tickets() -> pd.DataFrame:
     path = _BASE / "tickets.csv"
     try:
-        df = pd.read_csv(path, sep=";", encoding="utf-8-sig")
-        df.columns = df.columns.str.strip().str.lower()
-        if "id_ticket" not in df.columns:
+        for sep in (";", ","):
+            df = pd.read_csv(path, sep=sep, encoding="utf-8-sig")
+            df.columns = df.columns.str.strip().str.lower()
+            if "id_ticket" in df.columns:
+                break
+        else:
             raise ValueError("Coluna id_ticket ausente")
     except Exception as exc:
         logger.warning("tickets.csv com estrutura inválida (%s). Aplicando fallback.", exc)
@@ -29,11 +32,13 @@ def carregar_tickets() -> pd.DataFrame:
             path, sep=",", encoding="utf-8-sig", engine="python",
             quotechar='"', quoting=csv.QUOTE_ALL, on_bad_lines="skip", header=None,
         )
-        df = df.iloc[:, :10]
-        df.columns = [
+        _COLS_FALLBACK = [
             "id_ticket", "data_abertura", "status", "modulo", "caminho",
             "tipo", "responsavel", "prioridade", "ultima_atualizacao", "tempo_gasto",
+            "tempo_gasto_uteis", "link_url",
         ]
+        df = df.iloc[:, :len(_COLS_FALLBACK)]
+        df.columns = _COLS_FALLBACK[:len(df.columns)]
         primeira = df.iloc[0].astype(str).str.lower()
         if any("id_ticket" in v for v in primeira):
             df = df.iloc[1:]

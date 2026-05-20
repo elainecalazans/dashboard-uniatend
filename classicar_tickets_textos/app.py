@@ -27,7 +27,7 @@ _COLUNAS_FINAIS = [
     "ID", "Data Abertura", "Última Atualização", "Status", "Módulo", "Categoria", "Subcategoria",
     "Responsável",
     "SLA Piso", "SLA Teto", "% Consumo SLA", "Status SLA", "Tempo Gasto",
-    "Causa Raíz", "Caminho", "Tipo", "Título", "Prioridade", "Tempo Gasto (Horas)",
+    "Causa Raíz", "Caminho", "Tipo", "Título", "Prioridade", "Tempo Gasto (Horas)", "Link ClickUp",
 ]
 
 
@@ -59,6 +59,7 @@ def _montar_base() -> pd.DataFrame:
         "responsável":       "Responsável",
         "última_atualização": "Última Atualização",
         "ultima_atualizacao": "Última Atualização",
+        "link_url":           "Link ClickUp",
     }, inplace=True)
     return base
 

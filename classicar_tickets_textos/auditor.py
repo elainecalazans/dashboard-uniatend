@@ -46,6 +46,11 @@ _COBRANCA_RE = re.compile(
     re.IGNORECASE,
 )
 
+_DEV_RE = re.compile(
+    r"\b(time\s+de\s+desenvolvimento|time\s+de\s+dev|tratativa\s+de\s+dev)\b",
+    re.IGNORECASE,
+)
+
 _SAUDACAO_RE = re.compile(
     r"^(boa tarde|bom dia|ol[aá]|oi)[,.]?\s*",
     re.IGNORECASE,
@@ -152,6 +157,16 @@ def _protocolo_encerramento(historico: list[dict]) -> bool:
     )
 
 
+def _link_clickup_ausente(historico: list[dict], link_url: str) -> bool:
+    mencionou_dev = any(
+        _DEV_RE.search(h["texto"])
+        for h in historico if h["papel"] == "tecnico"
+    )
+    if not mencionou_dev:
+        return False
+    return str(link_url).strip() in ("", "nan")
+
+
 def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFrame:
     df_tickets = df_tickets[df_tickets["Status"].str.strip().str.lower() != "cancelado"].copy()
 
@@ -170,6 +185,7 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
         categoria = ticket.get("Categoria", "")
         status = ticket.get("Status", "")
         tipo = str(ticket.get("Tipo", "") or "").strip()
+        link_url = str(ticket.get("Link ClickUp", "") or "").strip()
 
         registros.append({
             "ID": ticket_id,
@@ -178,6 +194,7 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
             "Tipo": tipo,
             "Categoria": categoria,
             "Status": status,
+            "Data Abertura": ticket.get("Data Abertura", ""),
             "FRT (horas)": round(frt, 1) if frt is not None else None,
             "FRT OK": "Sim" if (frt is not None and frt <= 2.0) else ("Não" if frt is not None else _label_sem_frt(historico)),
             "Gap Máx (dias)": round(max_gap, 1) if max_gap is not None else None,
@@ -185,6 +202,10 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
             "Regra 24 Dias": _regra_24_dias(ticket.get("Última Atualização"), categoria, status, tipo),
             "Resolução Genérica": "Sim" if _resolucao_generica(msgs_tecnico) else "Não",
             "Causa Raíz Preenchida": "Sim" if (causa_raiz not in ("", "nan") and len(causa_raiz) > 3) else "Não",
+            "Link ClickUp": (
+                "Ausente" if _link_clickup_ausente(historico, link_url)
+                else ("OK" if link_url and link_url != "nan" else "-")
+            ),
         })
 
     return (
@@ -315,6 +336,8 @@ def _flags_do_ticket(row: pd.Series, tk: dict, historico: list[dict] | None = No
         flags.append({"cls": "fa", "txt": f"1ª resposta em {frt_h:.1f}h (limite: 2h)"})
     if row.get("Resolução Genérica") == "Sim":
         flags.append({"cls": "fa", "txt": "Encerramento genérico"})
+    if row.get("Link ClickUp") == "Ausente":
+        flags.append({"cls": "fc", "txt": "Escalado p/ Dev sem link ClickUp"})
     # Causa Raíz desativada temporariamente — regra de aplicação em definição
     return flags
 
@@ -329,6 +352,7 @@ def _tem_flag(row: pd.Series) -> bool:
         or row.get("Regra 24 Dias") == "Sim"
         or (row.get("FRT OK") == "Não" and pd.notna(row.get("FRT (horas)")))
         or row.get("Resolução Genérica") == "Sim"
+        or row.get("Link ClickUp") == "Ausente"
         # Causa Raíz desativada temporariamente — regra de aplicação em definição
     )
 
@@ -606,11 +630,22 @@ def gerar_html_report(
     df_tk["ID"] = df_tk["ID"].astype(str).str.strip()
     tk_idx = df_tk.set_index("ID").to_dict("index")
 
-    # Apenas tickets em aberto — concluídos são histórico, não requerem ação do líder
-    df_flag = df_audit[
-        df_audit.apply(_tem_flag, axis=1)
-        & ~df_audit["Status"].str.strip().str.lower().str.contains("conclu", na=False)
-    ].copy()
+    is_concluido = df_audit["Status"].str.strip().str.lower().str.contains("conclu", na=False)
+
+    mask_abertos = df_audit.apply(_tem_flag, axis=1) & ~is_concluido
+
+    if "Data Abertura" in df_audit.columns and "Link ClickUp" in df_audit.columns:
+        _datas = pd.to_datetime(df_audit["Data Abertura"], dayfirst=True, errors="coerce")
+        mask_concluido_clickup = (
+            is_concluido
+            & (_datas.dt.month == hoje.month)
+            & (_datas.dt.year == hoje.year)
+            & (df_audit["Link ClickUp"] == "Ausente")
+        )
+    else:
+        mask_concluido_clickup = pd.Series(False, index=df_audit.index)
+
+    df_flag = df_audit[mask_abertos | mask_concluido_clickup].copy()
 
     cta_dashboard = (
         f"<div style='background:#eef8f8;border-top:1px solid #b2e5e5;"
