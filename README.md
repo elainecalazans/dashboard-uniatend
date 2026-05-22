@@ -22,6 +22,142 @@ dashboard_uniatend/
 
 ---
 
+## Regras de Mensuração e Indicadores
+
+### Os 4 Mandamentos do Playbook
+
+Toda auditoria de ticket verifica estes critérios, derivados do Playbook UniDNA v1.0:
+
+| # | Mandamento | Regra |
+|---|-----------|-------|
+| 1 | **FRT ≤ 2h** | Primeira resposta real do técnico em até 2 horas após a abertura do ticket |
+| 2 | **Zero Zumbis** | Nenhum ticket com período de espera do cliente superior a 5 dias corridos sem resposta do técnico |
+| 3 | **Regra dos 24 Dias** | Tickets com Categoria = "Melhorias" ou Tipo = "Melhoria" devem ter atualização a cada 24 dias enquanto abertos |
+| 4 | **Encerramento com Conteúdo** | A última mensagem do técnico não pode ser genérica (ex.: "resolvido", "ok", "pronto") sem explicação técnica real |
+
+> Tickets cancelados são excluídos da auditoria. Tickets com Tipo = "Melhoria" são excluídos do Risco Zumbi e dos Desvios de SLA.
+
+---
+
+### Critérios de Conformidade (OKR Mensal)
+
+A conformidade de um ticket é avaliada **apenas sobre tickets concluídos no mês**. Um ticket é considerado **conforme** quando atende simultaneamente os 4 critérios abaixo:
+
+| Critério | Condição para aprovação | Observação |
+|----------|------------------------|------------|
+| FRT ≤ 2h | `FRT OK = "Sim"` | Neutro (não reprova) quando `"Sem dados"` ou `"Abertura Administrativa"` |
+| Risco Zumbi | `Risco Zumbi = "Não"` | Gap é medido apenas nos períodos em que o **cliente aguardou** o técnico |
+| Resolução Genérica | `Resolução Genérica = "Não"` | Verifica última mensagem e, se genérica, a penúltima — técnico que envia explicação técnica e depois envia "Ticket finalizado." não é reprovado |
+| Link ClickUp | `Link ClickUp ≠ "Ausente"` | Somente para tickets onde o técnico menciona "time de dev" / "tratativa de dev" |
+
+**Meta:** ≥ 90% de conformidade.
+
+> **Causa Raíz está fora dos critérios de conformidade** — é acompanhada como indicador de progressão separado, sem meta numérica por enquanto.
+
+---
+
+### Indicadores do Report Mensal
+
+O e-mail de Auditoria Mensal de Conformidade (`python app.py --auditoria-mensal`) exibe 6 indicadores principais:
+
+#### 1. Conformidade
+- **Base:** tickets concluídos no mês corrente
+- **Fórmula:** `tickets conformes / total de tickets concluídos no mês`
+- **Meta:** ≥ 90% (verde), < 70% (vermelho), entre 70–90% (amarelo)
+
+#### 2. Não Conformes
+- Contagem absoluta de tickets concluídos no mês que falharam em ao menos 1 critério
+- Reprovações múltiplas em um mesmo ticket contam como 1 ticket não conforme
+
+#### 3. Tempo Mediano de Resolução
+- **Base:** `Tempo Gasto (Horas)` dos tickets concluídos no mês
+- **Métrica principal:** mediana — mais representativa para suporte, onde poucos tickets de longa duração distorceriam a média
+- **Métrica secundária:** média — exibida abaixo como referência
+- Exibido em minutos, horas ou dias conforme magnitude
+
+#### 4. Melhorias
+- **Fórmula:** `tickets com Tipo = "Melhoria" / total de tickets do mês`
+- **Base:** todos os tickets do mês (abertos e concluídos)
+- Indica proporção da demanda de evolução de produto no período
+
+#### 5. Erro → Dev
+- **Fórmula:** `tickets com Tipo = "Erro" e Link ClickUp ≠ "-" / total de tickets do mês`
+- `Link ClickUp ≠ "-"` significa que o técnico mencionou o time de desenvolvimento no atendimento (com ou sem link preenchido)
+- Mede a taxa de chamados de erro que exigiram escalada ao time de desenvolvimento
+
+#### 6. Causa Raíz
+- Exibe o número de causas raíz distintas identificadas no mês e o total de tickets com causa preenchida
+- Alimentado por preenchimento manual no Excel ou por detecção automática (ver seção abaixo)
+- Quando vazio: aguardando adoção dos textos padronizados de encerramento pelo time
+
+---
+
+### Recorrência (Report Mensal)
+
+Seção complementar calculada sobre os **últimos 30 dias** a partir da data de execução:
+
+| Métrica | Definição |
+|---------|-----------|
+| **Recorrência por Categoria** | % de tickets cuja Categoria aparece em 2 ou mais tickets no período. Indica padrões de demanda que se repetem. |
+| **Recorrência por Causa Raíz** | % de tickets com causa raíz preenchida cuja causa aparece em 2 ou mais tickets no período. Indica problemas sistêmicos não resolvidos na origem. |
+
+Cada métrica é acompanhada de um gráfico de barras com a distribuição por categoria/causa e listagem detalhada dos tickets envolvidos.
+
+---
+
+### Chamados por Causa Raíz
+
+Breakdown por causa raíz identificada nos tickets do mês. Aparece no e-mail mensal somente quando há dados preenchidos.
+
+A causa raíz pode ser registrada de duas formas:
+1. **Preenchimento manual** — editando a coluna `Causa Raíz` diretamente no `relatorio_classificado.xlsx` antes da próxima execução do pipeline (o valor é preservado nas execuções seguintes)
+2. **Detecção automática** — `classifier.py` identifica causas pelo texto das mensagens do técnico usando palavras-chave definidas em `REGRAS_CAUSA_RAIZ`
+
+> Tickets históricos raramente são detectados automaticamente (linguagem informal). A detecção funciona progressivamente conforme o time adota os textos padronizados de encerramento.
+
+**Causas mapeadas atualmente:**
+- Coleta Saídas sem AutXML — Parametrização ERP Cliente → keyword: `autxml`
+- Entradas — Consumo Indevido — Parâmetro = Integral → `consumo indevido` + `configuramos` + `periodo noturno` (exclui `certificado digital`)
+- Entradas — Consumo Indevido — Parâmetro = Noturno → `consumo indevido` + `certificado digital`
+
+---
+
+### Separação Cliente / Técnico
+
+O campo `usuario` do `textos.csv` identifica quem enviou cada mensagem. O pipeline separa automaticamente:
+
+- **Técnico:** usuário cujo nome está na lista `TECNICOS` em `text_cleaner.py`
+- **Cliente:** qualquer outro usuário
+
+Casos especiais:
+- **Abertura Administrativa:** técnico abriu o ticket em nome do cliente — `FRT` fica como `"Abertura Administrativa"` (neutro na conformidade)
+- **Proxy:** todas as mensagens registradas por um único usuário não-técnico (ex.: gestor registrando por um cliente) — tratado da mesma forma
+
+**Técnicos cadastrados** (atualizar `text_cleaner.py` ao mudar o time):
+- GUILHERME LOPES PIRES DA SILVA
+- GUILHERME HENRIQUE PORTO DOS SANTOS
+- JEISY GONCALVES DE SOUSA
+- RAFAEL RODRIGUES VIANNA
+- ANDRESSA TELES RODRIGUES
+
+---
+
+### SLA
+
+Regras definidas em `sla_rules.json` por `Módulo > Categoria > Subcategoria`, com piso e teto em horas.
+
+| Status SLA | Significado |
+|------------|-------------|
+| Dentro do Prazo | Tempo gasto ≤ teto |
+| Acima do Teto | Tempo gasto > teto — conta como desvio |
+| Prazo Não Aplicável | Tipo = "Melhoria" — excluído do controle de SLA |
+| SLA Não Definido | Combinação de Módulo/Categoria/Subcategoria sem regra cadastrada |
+| Sem Registro de Tempo | Tempo Gasto em branco |
+
+O e-mail diário e o mensal incluem a seção **Desvios de SLA**, com tickets concluídos no mês acima do teto e tickets abertos que já estouraram, agrupados por Módulo › Categoria.
+
+---
+
 ## Pré-requisitos
 
 - Python **3.11** ou superior (desenvolvido e testado em 3.13.2)

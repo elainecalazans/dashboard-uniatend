@@ -226,6 +226,99 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
     )
 
 
+def calcular_recorrencia(
+    df_classificado: pd.DataFrame,
+    df_textos_raw: pd.DataFrame,
+) -> dict:
+    hoje = pd.Timestamp.now()
+    limite = hoje - pd.Timedelta(days=30)
+
+    df = df_classificado.copy()
+    df["ID"] = df["ID"].astype(str).str.strip()
+    df["_data_ab"] = pd.to_datetime(
+        df.get("Data Abertura", pd.Series(dtype=str)), dayfirst=True, errors="coerce"
+    )
+    df_30 = df[df["_data_ab"] >= limite].copy()
+
+    vazio = {
+        "n_total_30d": 0,
+        "n_recorrente_cliente": 0,
+        "pct_recorrente_cliente": None,
+        "grupos_cliente": [],
+        "n_com_causa": 0,
+        "n_recorrente_causa": 0,
+        "pct_recorrente_causa": None,
+        "grupos_causa": [],
+    }
+    if df_30.empty:
+        return vazio
+
+    n_total_30d = len(df_30)
+
+    # Métrica 1 — mesma Categoria (2+ tickets no período)
+    grupos_cliente: list[dict] = []
+    recorrentes_c: set[str] = set()
+    if "Categoria" in df_30.columns:
+        for cat, grp in df_30.groupby("Categoria"):
+            if len(grp) < 2:
+                continue
+            ids = grp["ID"].tolist()
+            recorrentes_c.update(ids)
+            resps = (
+                grp["Responsável"].dropna().tolist()
+                if "Responsável" in grp.columns else []
+            )
+            grupos_cliente.append({
+                "categoria": str(cat),
+                "n": len(ids),
+                "tickets": ids,
+                "responsaveis": resps,
+            })
+        grupos_cliente.sort(key=lambda g: -g["n"])
+
+    pct_c = len(recorrentes_c) / n_total_30d if n_total_30d > 0 else None
+
+    # Métrica 2 — mesma Causa Raíz
+    grupos_causa: list[dict] = []
+    recorrentes_cr: set[str] = set()
+    n_com_causa = 0
+    pct_cr = None
+    if "Causa Raíz" in df_30.columns:
+        df_cr = df_30[
+            df_30["Causa Raíz"].notna()
+            & (df_30["Causa Raíz"].astype(str).str.strip().isin(["", "nan"]) == False)
+        ].copy()
+        n_com_causa = len(df_cr)
+        for causa, grp in df_cr.groupby("Causa Raíz"):
+            if len(grp) < 2:
+                continue
+            ids = grp["ID"].tolist()
+            recorrentes_cr.update(ids)
+            resps = (
+                grp["Responsável"].dropna().tolist()
+                if "Responsável" in grp.columns else []
+            )
+            grupos_causa.append({
+                "causa": str(causa),
+                "n": len(ids),
+                "tickets": ids,
+                "responsaveis": resps,
+            })
+        grupos_causa.sort(key=lambda g: -g["n"])
+        pct_cr = len(recorrentes_cr) / n_com_causa if n_com_causa > 0 else None
+
+    return {
+        "n_total_30d": n_total_30d,
+        "n_recorrente_cliente": len(recorrentes_c),
+        "pct_recorrente_cliente": pct_c,
+        "grupos_cliente": grupos_cliente,
+        "n_com_causa": n_com_causa,
+        "n_recorrente_causa": len(recorrentes_cr),
+        "pct_recorrente_causa": pct_cr,
+        "grupos_causa": grupos_causa,
+    }
+
+
 def auditar_conformidade_mensal(
     df_audit: pd.DataFrame,
 ) -> tuple[pd.DataFrame, float | None, int, int]:
@@ -350,6 +443,19 @@ def _ultima_msg_tecnico(historico: list[dict]) -> str:
             t = h["texto"].strip()
             return (t[:250] + "…") if len(t) > 250 else t
     return ""
+
+
+def _fmt_tempo(h: float) -> str:
+    if h < 1:
+        return f"{int(round(h * 60))}min"
+    if h < 24:
+        hh = int(h)
+        mm = int(round((h - hh) * 60))
+        if mm == 60:
+            hh += 1
+            mm = 0
+        return f"{hh}h" if mm == 0 else f"{hh}h {mm}min"
+    return f"{h / 24:.1f} dias"
 
 
 def _dias_desde(ts) -> int | None:
@@ -926,11 +1032,333 @@ def gerar_html_report_individual(
     return _tpl(corpo, subtit)
 
 
+def _calcular_metricas_conformidade(
+    df_classificado: pd.DataFrame,
+    df_audit_full: pd.DataFrame | None,
+    n_total: int,
+    n_conforme: int,
+    pct: float,
+) -> dict:
+    hoje = pd.Timestamp.now()
+    df = df_classificado.copy()
+    df["ID"] = df["ID"].astype(str).str.strip()
+    df["_data_ab"] = pd.to_datetime(
+        df.get("Data Abertura", pd.Series(dtype=str)), dayfirst=True, errors="coerce"
+    )
+    is_mes = (df["_data_ab"].dt.month == hoje.month) & (df["_data_ab"].dt.year == hoje.year)
+    df_mes = df[is_mes].copy()
+    n_mes = len(df_mes)
+
+    is_conc = df_mes["Status"].str.strip().str.lower().str.contains("conclu", na=False)
+    df_conc = df_mes[is_conc]
+
+    # Tempo mediano e médio — concluídos no mês
+    tempo_mediano = tempo_medio = None
+    if "Tempo Gasto (Horas)" in df_conc.columns and len(df_conc) > 0:
+        vals = df_conc["Tempo Gasto (Horas)"].dropna()
+        if len(vals) > 0:
+            tempo_mediano = float(vals.median())
+            tempo_medio = float(vals.mean())
+
+    # % melhoria — todos os tickets do mês
+    n_melhoria = 0
+    pct_melhoria = None
+    if "Tipo" in df_mes.columns and n_mes > 0:
+        n_melhoria = int((df_mes["Tipo"].str.strip().str.lower() == "melhoria").sum())
+        pct_melhoria = n_melhoria / n_mes
+
+    # % erro → dev — Tipo=Erro com Link ClickUp ≠ "-" no mês
+    n_erro_dev = 0
+    pct_erro_dev = None
+    if df_audit_full is not None and n_mes > 0:
+        df_aud = df_audit_full.copy()
+        df_aud["ID"] = df_aud["ID"].astype(str).str.strip()
+        df_aud_mes = df_aud[df_aud["ID"].isin(df_mes["ID"])]
+        if "Tipo" in df_aud_mes.columns and "Link ClickUp" in df_aud_mes.columns:
+            mask = (
+                df_aud_mes["Tipo"].str.strip().str.lower() == "erro"
+            ) & ~df_aud_mes["Link ClickUp"].isin(["-", "", "nan"])
+            n_erro_dev = int(mask.sum())
+            pct_erro_dev = n_erro_dev / n_mes
+
+    # Causa raíz breakdown — tickets do mês com causa preenchida
+    causa_breakdown: list[dict] = []
+    if "Causa Raíz" in df_mes.columns:
+        cr = df_mes["Causa Raíz"].dropna()
+        cr = cr[~cr.astype(str).str.strip().isin(["", "nan"])]
+        for causa, cnt in cr.value_counts().items():
+            causa_breakdown.append({"causa": str(causa), "n": int(cnt)})
+
+    return {
+        "pct_conformidade": pct,
+        "n_conforme": n_conforme,
+        "n_total": n_total,
+        "n_nao_conforme": n_total - n_conforme,
+        "tempo_mediano": tempo_mediano,
+        "tempo_medio": tempo_medio,
+        "n_concluidos": len(df_conc),
+        "pct_melhoria": pct_melhoria,
+        "n_melhoria": n_melhoria,
+        "pct_erro_dev": pct_erro_dev,
+        "n_erro_dev": n_erro_dev,
+        "n_mes": n_mes,
+        "causa_breakdown": causa_breakdown,
+    }
+
+
+def _html_cards_mensais(m: dict, mes_nome: str) -> str:
+    def _card(titulo: str, valor: str, meta: str, sub: str, cor: str = "#888") -> str:
+        return (
+            f"<div class='ms-c' style='border-top:3px solid {cor}'>"
+            f"<div class='ms-l'>{titulo}</div>"
+            f"<div class='ms-v'>{valor}</div>"
+            f"<div class='ms-m'>{meta}</div>"
+            f"<div class='ms-s'>{sub}</div>"
+            f"</div>"
+        )
+
+    # Conformidade
+    pct_c = m["pct_conformidade"]
+    cor1 = "#02683d" if pct_c >= 0.90 else ("#c0392b" if pct_c < 0.70 else "#e07b00")
+    cls1 = "ok" if pct_c >= 0.90 else ("nk" if pct_c < 0.70 else "")
+    v1 = f'<span{"" if not cls1 else f" class=\"{cls1}\""}">{pct_c * 100:.1f}%</span>'
+    c1 = _card("Conformidade", v1, "Meta: &ge;&nbsp;90%", f'{m["n_conforme"]}/{m["n_total"]} conformes', cor1)
+
+    # Não Conformes
+    n_nao = m["n_nao_conforme"]
+    cor2 = "#c0392b" if n_nao > 0 else "#02683d"
+    v2 = f'<span class="{"nk" if n_nao > 0 else "ok"}">{n_nao}</span>'
+    c2 = _card("N&atilde;o Conformes", v2, "&nbsp;", f'{m["n_total"]} conclu&iacute;dos no m&ecirc;s', cor2)
+
+    # Tempo Mediano
+    tm = m.get("tempo_mediano")
+    tmed = m.get("tempo_medio")
+    if tm is not None:
+        v3 = f"<span>{_fmt_tempo(tm)}</span>"
+        m3 = f"M&eacute;dia: {_fmt_tempo(tmed)}" if tmed is not None else "&nbsp;"
+        s3 = f'{m["n_concluidos"]} conclu&iacute;dos no m&ecirc;s'
+        cor3 = "#1a8c55"
+    else:
+        v3, m3, s3, cor3 = '<span style="color:#bbb">&mdash;</span>', "&nbsp;", "sem dados", "#ccc"
+    c3 = _card("Tempo Mediano", v3, m3, s3, cor3)
+
+    # % Melhoria
+    pm = m.get("pct_melhoria")
+    if pm is not None:
+        v4 = f"{pm * 100:.1f}%"
+        s4 = f'{m["n_melhoria"]}/{m["n_mes"]} tickets no m&ecirc;s'
+        cor4 = "#888"
+    else:
+        v4, s4, cor4 = '<span style="color:#bbb">&mdash;</span>', "sem dados", "#ccc"
+    c4 = _card("Melhorias", v4, "Acompanhamento", s4, cor4)
+
+    # % Erro → Dev
+    pe = m.get("pct_erro_dev")
+    if pe is not None:
+        v5 = f"{pe * 100:.1f}%"
+        s5 = f'{m["n_erro_dev"]}/{m["n_mes"]} tickets no m&ecirc;s'
+        cor5 = "#e07b00" if pe > 0.10 else "#888"
+    else:
+        v5, s5, cor5 = '<span style="color:#bbb">&mdash;</span>', "sem dados", "#ccc"
+    c5 = _card("Erro &rarr; Dev", v5, "Acompanhamento", s5, cor5)
+
+    # Causa Raíz
+    n_cr = len(m.get("causa_breakdown", []))
+    if n_cr > 0:
+        total_cr = sum(g["n"] for g in m["causa_breakdown"])
+        v6 = f'{n_cr} causa{"s" if n_cr != 1 else ""}'
+        s6 = f"{total_cr} tickets identificados"
+        cor6 = "#02683d"
+    else:
+        v6, s6, cor6 = '<span style="color:#bbb">&mdash;</span>', "em preenchimento", "#ccc"
+    c6 = _card("Causa Ra&iacute;z", v6, "Acompanhamento", s6, cor6)
+
+    td1 = "style='width:32%;padding-right:5px;vertical-align:top;padding-bottom:6px'"
+    td2 = "style='width:32%;padding:0 5px;vertical-align:top;padding-bottom:6px'"
+    td3 = "style='width:32%;padding-left:5px;vertical-align:top;padding-bottom:6px'"
+    return (
+        f"<div class='ms'><div class='ms-t'>Indicadores do M&ecirc;s &mdash; {_esc(mes_nome)}</div>"
+        f"<table width='100%' cellspacing='0' cellpadding='0'>"
+        f"<tr><td {td1}>{c1}</td><td {td2}>{c2}</td><td {td3}>{c3}</td></tr>"
+        f"<tr><td {td1}>{c4}</td><td {td2}>{c5}</td><td {td3}>{c6}</td></tr>"
+        f"</table></div>"
+    )
+
+
+def _html_causa_raiz_breakdown(causa_breakdown: list[dict]) -> str:
+    if not causa_breakdown:
+        return ""
+    max_n = max(g["n"] for g in causa_breakdown)
+    linhas: list[str] = []
+    for g in causa_breakdown:
+        pct_b = g["n"] / max_n * 100
+        s = "ticket" if g["n"] == 1 else "tickets"
+        linhas.append(
+            f"<table width='100%' cellspacing='0' cellpadding='0' style='margin-bottom:7px'><tr>"
+            f"<td style='width:40%;font-size:12px;color:#1f2937;padding-right:10px;"
+            f"vertical-align:middle;word-break:break-word'>{_esc(g['causa'])}</td>"
+            f"<td style='width:52%;vertical-align:middle'>"
+            f"<div style='background:#d4edda;border-radius:3px;height:14px;overflow:hidden'>"
+            f"<div style='background:#02683d;height:14px;width:{pct_b:.1f}%'></div>"
+            f"</div></td>"
+            f"<td style='width:8%;font-size:12px;font-weight:700;color:#02683d;"
+            f"text-align:right;padding-left:8px;vertical-align:middle;white-space:nowrap'>"
+            f"{g['n']} {s}</td>"
+            f"</tr></table>"
+        )
+    return (
+        f"<div class='sh'><div class='sh-lbl'>Chamados por Causa Ra&iacute;z</div></div>"
+        f"<div class='dv'>"
+        f"<div style='background:#f8fffe;border:1px solid #b2e5e5;border-radius:6px;padding:14px 16px'>"
+        + "".join(linhas)
+        + "</div></div>"
+    )
+
+
+def _html_recorrencia(dados: dict, mes_nome: str) -> str:
+    if not dados or dados["n_total_30d"] == 0:
+        return ""
+
+    def _card_rec(label: str, valor: str, sub: str) -> str:
+        return (
+            f"<div class='ms-c'><div class='ms-l'>{label}</div>"
+            f"<div class='ms-v'>{valor}</div>"
+            f"<div class='ms-s'>{sub}</div></div>"
+        )
+
+    pct_c  = dados["pct_recorrente_cliente"]
+    pct_cr = dados["pct_recorrente_causa"]
+    n30    = dados["n_total_30d"]
+
+    v_c   = f"{pct_c * 100:.1f}%"  if pct_c  is not None else '<span style="color:#bbb">&mdash;</span>'
+    v_cr  = f"{pct_cr * 100:.1f}%" if pct_cr is not None else '<span style="color:#bbb">&mdash;</span>'
+    sub_c  = f'{dados["n_recorrente_cliente"]} de {n30} tickets &mdash; &uacute;lt. 30 dias'
+    sub_cr = f'{dados["n_recorrente_causa"]} de {dados["n_com_causa"]} com causa ra&iacute;z preenchida'
+
+    cards = (
+        f"<div class='ms'>"
+        f"<table width='100%' cellspacing='0' cellpadding='0'><tr>"
+        f"<td style='width:48%;padding-right:6px;vertical-align:top'>"
+        f"{_card_rec('Recorr&ecirc;ncia por Categoria', v_c, sub_c)}</td>"
+        f"<td style='width:48%;padding-left:6px;vertical-align:top'>"
+        f"{_card_rec('Recorr&ecirc;ncia por Causa Ra&iacute;z', v_cr, sub_cr)}</td>"
+        f"<td style='width:4%;vertical-align:top'></td>"
+        f"</tr></table></div>"
+    )
+
+    blocos = [cards]
+
+    def _barras(grupos: list[dict], chave_nome: str, chave_n: str) -> str:
+        if not grupos:
+            return ""
+        max_n = max(g[chave_n] for g in grupos)
+        linhas_b: list[str] = []
+        for g in grupos:
+            pct_b = g[chave_n] / max_n * 100
+            s = "ticket" if g[chave_n] == 1 else "tickets"
+            linhas_b.append(
+                f"<table width='100%' cellspacing='0' cellpadding='0' style='margin-bottom:7px'><tr>"
+                f"<td style='width:38%;font-size:12px;color:#1f2937;padding-right:10px;"
+                f"vertical-align:middle;word-break:break-word'>{_esc(str(g[chave_nome]))}</td>"
+                f"<td style='width:54%;vertical-align:middle'>"
+                f"<div style='background:#d4edda;border-radius:3px;height:14px;overflow:hidden'>"
+                f"<div style='background:#02683d;height:14px;width:{pct_b:.1f}%'></div>"
+                f"</div></td>"
+                f"<td style='width:8%;font-size:12px;font-weight:700;color:#02683d;"
+                f"text-align:right;padding-left:8px;vertical-align:middle;white-space:nowrap'>"
+                f"{g[chave_n]} {s}</td>"
+                f"</tr></table>"
+            )
+        return (
+            f"<div style='background:#f8fffe;border:1px solid #b2e5e5;border-radius:6px;"
+            f"padding:14px 16px;margin:10px 0 4px'>"
+            + "".join(linhas_b)
+            + "</div>"
+        )
+
+    # Seção — por categoria
+    titulo_cat = (
+        f"<div class='sh'><div class='sh-lbl'>"
+        f"Recorr&ecirc;ncia por Categoria &mdash; &uacute;ltimos 30 dias"
+        f"</div></div>"
+    )
+    if dados["grupos_cliente"]:
+        grafico_cat = _barras(dados["grupos_cliente"], "categoria", "n")
+        linhas: list[str] = []
+        for g in dados["grupos_cliente"]:
+            ids_str = ", ".join(f"#{t}" for t in g["tickets"])
+            resps = list(dict.fromkeys(
+                str(r) for r in g["responsaveis"] if r and str(r) not in ("", "nan")
+            ))
+            resp_str = " &middot; ".join(_esc(r) for r in resps)
+            linhas.append(
+                f'<div class="tk">'
+                f'<div class="ti">{_esc(g["categoria"])}</div>'
+                f'<div class="tm">{ids_str}</div>'
+                f'{"<div class=\"tm\">" + resp_str + "</div>" if resp_str else ""}'
+                f'<div><span class="f fc">{g["n"]} tickets na mesma categoria</span></div>'
+                f'</div>'
+            )
+        blocos.append(
+            titulo_cat
+            + f"<div class='dv'>{grafico_cat}"
+            f"<div class='rt' style='margin-top:18px'>Detalhe por categoria</div>"
+            f"{''.join(linhas)}</div>"
+        )
+    elif pct_c is not None:
+        blocos.append(
+            titulo_cat
+            + f"<div class='dv'><p style='color:#27ae60;font-style:italic;font-size:13px;margin:8px 0'>"
+            f"Nenhuma categoria recorrente no per&iacute;odo.</p></div>"
+        )
+
+    # Seção — por causa raíz
+    titulo_cr = (
+        f"<div class='sh'><div class='sh-lbl'>"
+        f"Recorr&ecirc;ncia por Causa Ra&iacute;z &mdash; &uacute;ltimos 30 dias"
+        f"</div></div>"
+    )
+    if dados["grupos_causa"]:
+        grafico_cr = _barras(dados["grupos_causa"], "causa", "n")
+        linhas_cr: list[str] = []
+        for g in dados["grupos_causa"]:
+            ids_str = ", ".join(f"#{t}" for t in g["tickets"])
+            resps = list(dict.fromkeys(
+                str(r) for r in g["responsaveis"] if r and str(r) not in ("", "nan")
+            ))
+            resp_str = " &middot; ".join(_esc(r) for r in resps)
+            linhas_cr.append(
+                f'<div class="tk">'
+                f'<div class="ti">{_esc(g["causa"])}</div>'
+                f'<div class="tm">{ids_str}</div>'
+                f'{"<div class=\"tm\">" + resp_str + "</div>" if resp_str else ""}'
+                f'<div><span class="f fc">{g["n"]} tickets com a mesma causa ra&iacute;z</span></div>'
+                f'</div>'
+            )
+        blocos.append(
+            titulo_cr
+            + f"<div class='dv'>{grafico_cr}"
+            f"<div class='rt' style='margin-top:18px'>Detalhe por causa ra&iacute;z</div>"
+            f"{''.join(linhas_cr)}</div>"
+        )
+    elif pct_cr is not None:
+        blocos.append(
+            titulo_cr
+            + f"<div class='dv'><p style='color:#27ae60;font-style:italic;font-size:13px;margin:8px 0'>"
+            f"Nenhuma causa ra&iacute;z recorrente no per&iacute;odo.</p></div>"
+        )
+
+    return "".join(blocos)
+
+
 def gerar_html_report_conformidade(
     df_conf: pd.DataFrame,
     pct: float,
     n_total: int,
     n_conforme: int,
+    df_classificado: pd.DataFrame | None = None,
+    df_textos_raw: pd.DataFrame | None = None,
+    df_audit_full: pd.DataFrame | None = None,
 ) -> str:
     _carregar_env()
     hoje = pd.Timestamp.now()
@@ -938,26 +1366,30 @@ def gerar_html_report_conformidade(
     mes_nome = f"{_MESES_PT.get(hoje.month, '')}/{hoje.year}"
     dashboard_url = os.environ.get("DASHBOARD_URL", "").strip()
 
-    cor_geral = "ok" if pct >= 0.90 else ("nk" if pct < 0.70 else "")
-    pct_str = f'<span{"" if not cor_geral else f" class=\'{cor_geral}\'"}">{pct * 100:.1f}%</span>'
-
-    card_geral = (
-        f"<div class='ms'>"
-        f"<table width='100%' cellspacing='0' cellpadding='0'><tr>"
-        f"<td style='width:32%;padding-right:5px;vertical-align:top'>"
-        f"<div class='ms-c'><div class='ms-l'>Conformidade Geral</div>"
-        f"<div class='ms-v'>{pct_str}</div>"
-        f"<div class='ms-m'>Meta: &ge;&nbsp;90%</div>"
-        f"<div class='ms-s'>{n_conforme}/{n_total} tickets conformes</div></div></td>"
-        f"<td style='width:32%;padding:0 5px;vertical-align:top'>"
-        f"<div class='ms-c'><div class='ms-l'>N&atilde;o Conformes</div>"
-        f"<div class='ms-v'><span class='{'nk' if (n_total - n_conforme) > 0 else 'ok'}'>"
-        f"{n_total - n_conforme}</span></div>"
-        f"<div class='ms-m'>&nbsp;</div>"
-        f"<div class='ms-s'>{n_total} tickets conclu&iacute;dos no m&ecirc;s</div></div></td>"
-        f"<td style='width:32%;padding-left:5px;vertical-align:top'></td>"
-        f"</tr></table></div>"
-    )
+    if df_classificado is not None:
+        m = _calcular_metricas_conformidade(df_classificado, df_audit_full, n_total, n_conforme, pct)
+        cards_html = _html_cards_mensais(m, mes_nome)
+        secao_causa = _html_causa_raiz_breakdown(m["causa_breakdown"])
+    else:
+        cor_geral = "ok" if pct >= 0.90 else ("nk" if pct < 0.70 else "")
+        pct_str = f'<span{"" if not cor_geral else f" class=\'{cor_geral}\'"}">{pct * 100:.1f}%</span>'
+        cards_html = (
+            f"<div class='ms'><table width='100%' cellspacing='0' cellpadding='0'><tr>"
+            f"<td style='width:32%;padding-right:5px;vertical-align:top'>"
+            f"<div class='ms-c'><div class='ms-l'>Conformidade Geral</div>"
+            f"<div class='ms-v'>{pct_str}</div>"
+            f"<div class='ms-m'>Meta: &ge;&nbsp;90%</div>"
+            f"<div class='ms-s'>{n_conforme}/{n_total} tickets conformes</div></div></td>"
+            f"<td style='width:32%;padding:0 5px;vertical-align:top'>"
+            f"<div class='ms-c'><div class='ms-l'>N&atilde;o Conformes</div>"
+            f"<div class='ms-v'><span class='{'nk' if (n_total - n_conforme) > 0 else 'ok'}'>"
+            f"{n_total - n_conforme}</span></div>"
+            f"<div class='ms-m'>&nbsp;</div>"
+            f"<div class='ms-s'>{n_total} conclu&iacute;dos no m&ecirc;s</div></div></td>"
+            f"<td style='width:32%;padding-left:5px;vertical-align:top'></td>"
+            f"</tr></table></div>"
+        )
+        secao_causa = ""
 
     # Breakdown por responsável
     resumo = []
@@ -1038,6 +1470,11 @@ def gerar_html_report_conformidade(
         if blocos_nao else ""
     )
 
+    secao_rec = ""
+    if df_classificado is not None and df_textos_raw is not None:
+        rec = calcular_recorrencia(df_classificado, df_textos_raw)
+        secao_rec = _html_recorrencia(rec, mes_nome)
+
     cta = (
         f"<div style='background:#eef8f8;border-top:1px solid #b2e5e5;"
         f"padding:20px 24px;text-align:center;'>"
@@ -1056,9 +1493,11 @@ def gerar_html_report_conformidade(
         "<div class='lb'><span class='lb-txt'>UniATEND</span></div>"
         "<div class='hd'><h1>Auditoria Mensal de Conformidade</h1>"
         f"<p>{data_str} &nbsp;&middot;&nbsp; {_esc(mes_nome)}</p></div>"
-        f"{card_geral}"
+        f"{cards_html}"
+        f"{secao_causa}"
         f"{tabela_resumo}"
         f"{secao_nao}"
+        f"{secao_rec}"
         f"{cta}"
         "<div class='ft'>Gerado automaticamente pelo pipeline UniATEND</div>"
         "</div></body></html>"

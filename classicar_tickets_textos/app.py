@@ -245,7 +245,7 @@ def main() -> None:
             )
             if ENVIO_EMAIL_ATIVO:
                 try:
-                    html_conf = gerar_html_report_conformidade(df_conf, pct, n_total, n_conforme)
+                    html_conf = gerar_html_report_conformidade(df_conf, pct, n_total, n_conforme, df_final, df_textos_raw, df_audit)
                     enviar_report_conformidade(html_conf, mes_exib)
                     logger.info("Report de conformidade mensal enviado por e-mail.")
                 except Exception as exc:
