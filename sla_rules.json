@@ -185,6 +185,14 @@
   },
   {
     "modulo": "Ambos",
+    "categoria": ["acesso ao sistema"],
+    "subcategoria": [],
+    "nome_exibicao": "Acesso ao Sistema",
+    "piso_horas": 2.0,
+    "teto_horas": 24.0
+  },
+  {
+    "modulo": "Ambos",
     "categoria": ["melhorias"],
     "subcategoria": [],
     "nome_exibicao": "Melhorias",
