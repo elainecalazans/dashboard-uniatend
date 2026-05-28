@@ -55,18 +55,23 @@ def carregar_tickets() -> pd.DataFrame:
 
 def carregar_textos() -> pd.DataFrame:
     path = _BASE / "textos.csv"
-    df = pd.read_csv(
-        path, sep=",", encoding="utf-8-sig", engine="python",
-        quoting=csv.QUOTE_MINIMAL, on_bad_lines="skip",
-    )
-    df.columns = df.columns.str.strip()
-
-    if "id_ticket" not in df.columns:
-        logger.warning("textos.csv com estrutura inválida. Aplicando fallback.")
+    for sep in (";", ","):
         df = pd.read_csv(
-            path, sep=",", encoding="utf-8-sig", engine="python",
-            header=None, quotechar='"', quoting=csv.QUOTE_ALL, on_bad_lines="skip",
+            path, sep=sep, encoding="utf-8-sig", engine="python",
+            quoting=csv.QUOTE_MINIMAL, on_bad_lines="skip",
         )
+        df.columns = df.columns.str.strip()
+        if "id_ticket" in df.columns:
+            break
+    else:
+        logger.warning("textos.csv com estrutura inválida. Aplicando fallback.")
+        for sep in (";", ","):
+            df = pd.read_csv(
+                path, sep=sep, encoding="utf-8-sig", engine="python",
+                header=None, quotechar='"', quoting=csv.QUOTE_ALL, on_bad_lines="skip",
+            )
+            if df.shape[1] >= 4:
+                break
         df = df.iloc[:, :4]
         df.columns = ["id_ticket", "nome", "texto", "criado_em"]
 
