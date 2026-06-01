@@ -181,6 +181,12 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Gera relatório de conformidade mensal (tickets concluídos no mês)",
     )
+    p.add_argument(
+        "--mes",
+        default=None,
+        metavar="AAAA-MM",
+        help="Mês de referência para a auditoria mensal (ex: 2026-05). Padrão: mês atual.",
+    )
     return p.parse_args()
 
 
@@ -233,10 +239,18 @@ def main() -> None:
         logger.info("Envio de e-mail desativado (ENVIO_EMAIL_ATIVO = False).")
 
     if args.auditoria_mensal:
-        mes_str = pd.Timestamp.now().strftime("%Y_%m")
-        mes_exib = mes_str.replace("_", "/")
+        mes_ref = None
+        if args.mes:
+            try:
+                mes_ref = pd.Timestamp(args.mes + "-01")
+            except Exception:
+                logger.error("Formato inválido para --mes: use AAAA-MM (ex: 2026-05)")
+                return
+        ref_ts = mes_ref or pd.Timestamp.now()
+        mes_str = ref_ts.strftime("%Y_%m")
+        mes_exib = ref_ts.strftime("%Y/%m")
         conf_path = _BASE.parent / "relatorio_dashboard" / f"relatorio_conformidade_{mes_str}.xlsx"
-        df_conf, pct, n_total, n_conforme = auditar_conformidade_mensal(df_audit)
+        df_conf, pct, n_total, n_conforme = auditar_conformidade_mensal(df_audit, mes_ref=mes_ref)
         if pct is not None:
             df_conf.to_excel(conf_path, index=False)
             logger.info(
@@ -245,7 +259,7 @@ def main() -> None:
             )
             if ENVIO_EMAIL_ATIVO:
                 try:
-                    html_conf = gerar_html_report_conformidade(df_conf, pct, n_total, n_conforme, df_final, df_textos_raw, df_audit)
+                    html_conf = gerar_html_report_conformidade(df_conf, pct, n_total, n_conforme, df_final, df_textos_raw, df_audit, mes_ref=mes_ref)
                     enviar_report_conformidade(html_conf, mes_exib)
                     logger.info("Report de conformidade mensal enviado por e-mail.")
                 except Exception as exc:
@@ -253,7 +267,7 @@ def main() -> None:
             else:
                 logger.info("Envio de e-mail desativado (ENVIO_EMAIL_ATIVO = False).")
         else:
-            logger.info("Auditoria mensal: sem tickets concluídos no mês %s.", mes_exib)
+            logger.info("Auditoria mensal: sem tickets concluídos em %s.", mes_exib)
 
 
 if __name__ == "__main__":

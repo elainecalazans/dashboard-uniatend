@@ -332,19 +332,20 @@ def calcular_recorrencia(
 
 def auditar_conformidade_mensal(
     df_audit: pd.DataFrame,
+    mes_ref: pd.Timestamp | None = None,
 ) -> tuple[pd.DataFrame, float | None, int, int]:
     """
     Retorna (df_resultado, pct_conformidade, n_total, n_conforme).
-    Base: tickets concluídos no mês atual.
+    Base: tickets concluídos no mês de referência (padrão: mês atual).
     FRT 'Sem dados' / 'Abertura Administrativa' → critério neutro (Opção A).
     """
-    hoje = pd.Timestamp.now()
+    ref = mes_ref or pd.Timestamp.now()
 
     is_concluido = df_audit["Status"].str.strip().str.lower().str.contains("conclu", na=False)
     _datas = pd.to_datetime(
         df_audit.get("Data Abertura", pd.Series(dtype=str)), dayfirst=True, errors="coerce"
     )
-    is_mes = (_datas.dt.month == hoje.month) & (_datas.dt.year == hoje.year)
+    is_mes = (_datas.dt.month == ref.month) & (_datas.dt.year == ref.year)
 
     df_mes = df_audit[is_concluido & is_mes].copy()
     if df_mes.empty:
@@ -1049,14 +1050,15 @@ def _calcular_metricas_conformidade(
     n_total: int,
     n_conforme: int,
     pct: float,
+    mes_ref: pd.Timestamp | None = None,
 ) -> dict:
-    hoje = pd.Timestamp.now()
+    ref = mes_ref or pd.Timestamp.now()
     df = df_classificado.copy()
     df["ID"] = df["ID"].astype(str).str.strip()
     df["_data_ab"] = pd.to_datetime(
         df.get("Data Abertura", pd.Series(dtype=str)), dayfirst=True, errors="coerce"
     )
-    is_mes = (df["_data_ab"].dt.month == hoje.month) & (df["_data_ab"].dt.year == hoje.year)
+    is_mes = (df["_data_ab"].dt.month == ref.month) & (df["_data_ab"].dt.year == ref.year)
     df_mes = df[is_mes].copy()
     n_mes = len(df_mes)
 
@@ -1370,15 +1372,16 @@ def gerar_html_report_conformidade(
     df_classificado: pd.DataFrame | None = None,
     df_textos_raw: pd.DataFrame | None = None,
     df_audit_full: pd.DataFrame | None = None,
+    mes_ref: pd.Timestamp | None = None,
 ) -> str:
     _carregar_env()
-    hoje = pd.Timestamp.now()
-    data_str = hoje.strftime("%d/%m/%Y")
-    mes_nome = f"{_MESES_PT.get(hoje.month, '')}/{hoje.year}"
+    ref = mes_ref or pd.Timestamp.now()
+    data_str = pd.Timestamp.now().strftime("%d/%m/%Y")
+    mes_nome = f"{_MESES_PT.get(ref.month, '')}/{ref.year}"
     dashboard_url = os.environ.get("DASHBOARD_URL", "").strip()
 
     if df_classificado is not None:
-        m = _calcular_metricas_conformidade(df_classificado, df_audit_full, n_total, n_conforme, pct)
+        m = _calcular_metricas_conformidade(df_classificado, df_audit_full, n_total, n_conforme, pct, mes_ref=ref)
         cards_html = _html_cards_mensais(m, mes_nome)
         secao_causa = _html_causa_raiz_breakdown(m["causa_breakdown"])
     else:
