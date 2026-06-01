@@ -198,6 +198,16 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
         tipo = str(ticket.get("Tipo", "") or "").strip()
         link_url = str(ticket.get("Link ClickUp", "") or "").strip()
 
+        # Zumbi Ativo: ticket está aguardando agora (última msg é do cliente, gap atual > 5 dias).
+        # Distinto de Risco Zumbi, que guarda o pior gap histórico para conformidade mensal.
+        msgs_com_ts = [h for h in historico if pd.notna(h.get("timestamp"))]
+        zumbi_ativo = False
+        if msgs_com_ts and "conclu" not in str(status).strip().lower():
+            ultimo = msgs_com_ts[-1]
+            if ultimo["papel"] == "cliente":
+                gap_atual = (pd.Timestamp.now().normalize() - ultimo["timestamp"]).total_seconds() / 86400
+                zumbi_ativo = gap_atual > 5
+
         registros.append({
             "ID": ticket_id,
             "Responsável": ticket.get("Responsável", ""),
@@ -210,6 +220,7 @@ def auditar(df_tickets: pd.DataFrame, df_textos_raw: pd.DataFrame) -> pd.DataFra
             "FRT OK": "Sim" if (frt is not None and frt <= 2.0) else ("Não" if frt is not None else _label_sem_frt(historico)),
             "Gap Máx (dias)": round(max_gap, 1) if max_gap is not None else None,
             "Risco Zumbi": "Sim" if (max_gap is not None and max_gap > 5) else "Não",
+            "Zumbi Ativo": zumbi_ativo,
             "Regra 24 Dias": _regra_24_dias(ticket.get("Última Atualização"), categoria, status, tipo),
             "Resolução Genérica": "Sim" if _resolucao_generica(msgs_tecnico) else "Não",
             "Causa Raíz Preenchida": "Sim" if (causa_raiz not in ("", "nan") and len(causa_raiz) > 3) else "Não",
@@ -474,16 +485,16 @@ def _flags_do_ticket(row: pd.Series, tk: dict, historico: list[dict] | None = No
         str(row.get("Categoria", "")).strip().lower() == "melhorias"
         or str(row.get("Tipo", "")).strip().lower() == "melhoria"
     )
-    if row.get("Risco Zumbi") == "Sim" and not is_melhoria:
-        gap = row.get("Gap Máx (dias)")
+    if row.get("Zumbi Ativo") == True and not is_melhoria:
         msgs_com_ts = [h for h in (historico or []) if pd.notna(h.get("timestamp"))]
-        ja_respondido = bool(msgs_com_ts) and msgs_com_ts[-1]["papel"] == "tecnico"
-        if ja_respondido:
-            txt = f"Cliente aguardou {int(gap)} dias — técnico já respondeu" if pd.notna(gap) else "Gap > 5 dias — técnico já respondeu"
-            flags.append({"cls": "fa", "txt": txt})
+        ultimo_cliente = next((h for h in reversed(msgs_com_ts) if h["papel"] == "cliente"), None)
+        if ultimo_cliente and pd.notna(ultimo_cliente.get("timestamp")):
+            gap_atual = int((pd.Timestamp.now().normalize() - ultimo_cliente["timestamp"]).total_seconds() / 86400)
+            txt = f"Cliente aguardando há {gap_atual} dias"
         else:
+            gap = row.get("Gap Máx (dias)")
             txt = f"Cliente aguardando há {int(gap)} dias" if pd.notna(gap) else "Gap > 5 dias"
-            flags.append({"cls": "fc", "txt": txt})
+        flags.append({"cls": "fc", "txt": txt})
     if row.get("Regra 24 Dias") == "Sim":
         dias = _dias_desde(tk.get("Última Atualização"))
         txt = (
@@ -509,7 +520,7 @@ def _tem_flag(row: pd.Series) -> bool:
         or str(row.get("Tipo", "")).strip().lower() == "melhoria"
     )
     return (
-        (not is_melhoria and row.get("Risco Zumbi") == "Sim")
+        (not is_melhoria and row.get("Zumbi Ativo") == True)
         or row.get("Regra 24 Dias") == "Sim"
         or (row.get("FRT OK") == "Não" and pd.notna(row.get("FRT (horas)")))
         or row.get("Resolução Genérica") == "Sim"
